@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tradebe - Gestión Molino v5.7</title>
+    <style>
+        :root { --blue: #0056b3; --green: #89b434; --orange: #e87e04; --light: #f4f7f6; --dark: #2c3e50; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--light); margin: 0; padding: 0; }
+        .page-section { display: none; }
+        .page-section.active { display: block; }
+        #login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--dark); }
+        .login-card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); width: 320px; text-align: center; }
+        .container { padding: 20px; max-width: 1100px; margin: auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 5px solid var(--blue); }
+        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 30px; border-bottom: 2px solid #ddd; }
+        
+        /* ADMIN LAYOUT RESTAURADO */
+        .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .admin-card { background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #eee; }
+        .user-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .user-table th, .user-table td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        .user-table input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+
+        /* OPERARIO LAYOUT */
+        .grid-header { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .input-group { display: flex; flex-direction: column; }
+        .input-group label { font-size: 0.75em; font-weight: bold; color: #666; margin-bottom: 5px; }
+        .counters-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .counters-table th { background: var(--blue); color: white; padding: 10px; font-size: 0.85em; }
+        .counters-table td { border: 1px solid #ddd; padding: 15px; width: 48%; }
+        .input-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .input-row label { font-size: 0.85em; color: #333; }
+        .input-row input { width: 110px; text-align: right; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-blue { background: var(--blue); color: white; }
+        .btn-green { background: var(--green); color: white; }
+        .btn-logout { background: #dc3545; color: white; padding: 8px 15px; }
+        .full-w { width: 100%; }
+        
+        table.tareas-table { width: 100%; border-collapse: collapse; }
+        table.tareas-table th, table.tareas-table td { border: 1px solid #ddd; padding: 10px; font-size: 0.85em; }
+        .time-select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 1em; }
+        
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
+        .modal-content { background: white; margin: 10% auto; padding: 25px; width: 400px; border-radius: 12px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-page" class="page-section active">
+        <div class="login-card">
+            <h2><span style="color:var(--orange)">TRADE</span><span style="color:var(--green)">BE</span></h2>
+            <input type="text" id="userInput" placeholder="Usuario" style="width:100%; margin-bottom:12px; padding:10px; box-sizing:border-box;">
+            <input type="password" id="passInput" placeholder="Contraseña" style="width:100%; margin-bottom:12px; padding:10px; box-sizing:border-box;">
+            <button class="btn btn-blue full-w" onclick="checkLogin()">Entrar</button>
+        </div>
+    </div>
+
+    <div id="app-content" class="page-section">
+        <div class="header">
+            <div style="font-weight:bold;">MOLINO TRADEBE</div>
+            <div id="welcome-msg" style="color:var(--blue); font-weight:bold;"></div>
+            <button class="btn btn-logout" onclick="window.location.reload()">Cerrar Sesión</button>
+        </div>
+        <div class="container" id="main-view"></div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Editar</h3>
+            <div id="modalList" style="max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; margin-bottom: 10px;"></div>
+            <input type="text" id="newItemInput" placeholder="Añadir nuevo..." style="width:70%; padding:8px;">
+            <button class="btn btn-blue" onclick="saveNewItem()">+</button>
+            <button class="btn full-w" style="margin-top:20px; background:#eee;" onclick="closeModal()">Cerrar</button>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZikzgJfVQHGAFegFVuRDplxAsqNEIyDraNeFWn2v5C4YTZFijdARxm8Z0xT3J0mX5/exec";
+        
+        let credenciales = { "arkadi": "arkadi1", "jose": "jose2", "orlando": "orlando3", "operario1": "operario." };
+        let tareas = ["Atasco", "Cambio Martillos", "Limpieza", "Avería"];
+        let activos = ["Molino", "Tromel", "Cinta 1", "Rotor"];
+        let currentEditType = "";
+
+        function checkLogin() {
+            const u = document.getElementById('userInput').value.toLowerCase().trim();
+            const p = document.getElementById('passInput').value;
+            if (u === 'admin' && p === '1234') renderAdmin();
+            else if (credenciales[u] && credenciales[u] === p) renderOperator(u.charAt(0).toUpperCase() + u.slice(1));
+            else alert("Error de acceso");
+        }
+
+        // --- PANEL DE ADMINISTRACIÓN RESTAURADO ---
+        function renderAdmin() {
+            document.getElementById('login-page').classList.remove('active');
+            document.getElementById('app-content').classList.add('active');
+            document.getElementById('welcome-msg').innerText = "ADMINISTRACIÓN";
+            const main = document.getElementById('main-view');
+            main.innerHTML = `
+                <div class="admin-grid">
+                    <div class="admin-card">
+                        <h4 style="margin-top:0">Exportar Datos</h4>
+                        <div style="margin-bottom:10px">
+                            <label style="font-size:0.75em; font-weight:bold;">DESDE</label>
+                            <input type="date" id="exp_desde" style="width:100%; padding:8px; box-sizing:border-box;">
+                        </div>
+                        <div style="margin-bottom:15px">
+                            <label style="font-size:0.75em; font-weight:bold;">HASTA</label>
+                            <input type="date" id="exp_hasta" style="width:100%; padding:8px; box-sizing:border-box;">
+                        </div>
+                        <button class="btn btn-green full-w" onclick="alert('Generando reporte...')">GENERAR EXCEL</button>
+                    </div>
+                    <div class="admin-card">
+                        <h4 style="margin-top:0">Listas Desplegables</h4>
+                        <button class="btn btn-blue full-w" style="margin-bottom:10px" onclick="openModal('activos')">Editar Activos</button>
+                        <button class="btn btn-blue full-w" onclick="openModal('tareas')">Editar Tareas</button>
+                    </div>
+                </div>
+                <div class="card" style="border-top-color: var(--orange)">
+                    <h3 style="margin-top:0">GESTIÓN DE USUARIOS</h3>
+                    <table class="user-table">
+                        <thead>
+                            <tr><th>Usuario</th><th>Contraseña</th><th style="text-align:right">Acción</th></tr>
+                        </thead>
+                        <tbody>
+                            ${Object.keys(credenciales).map(user => `
+                                <tr>
+                                    <td style="font-weight:bold">${user}</td>
+                                    <td><input type="text" id="pass-${user}" value="${credenciales[user]}"></td>
+                                    <td style="text-align:right">
+                                        <button class="btn btn-blue" style="padding:6px 12px; font-size:0.8em" onclick="updatePass('${user}')">Guardar</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+        }
+
+        function updatePass(user) {
+            credenciales[user] = document.getElementById(`pass-${user}`).value;
+            alert("Contraseña de " + user + " actualizada.");
+        }
+
+        // --- PANEL DE OPERARIO ---
+        function renderOperator(name) {
+            document.getElementById('login-page').classList.remove('active');
+            document.getElementById('app-content').classList.add('active');
+            document.getElementById('welcome-msg').innerText = "OPERARIO: " + name;
+            const main = document.getElementById('main-view');
+            main.innerHTML = `
+                <div class="card">
+                    <div class="grid-header">
+                        <div class="input-group"><label>LOTE</label><input type="text" id="f_lote"></div>
+                        <div class="input-group"><label>FECHA</label><input type="text" id="f_fecha" value="${new Date().toLocaleDateString()}" readonly></div>
+                        <div class="input-group"><label>TURNO</label>
+                            <select id="f_turno" onchange="actualizarTodosLosDesplegables()">
+                                <option value="Mañana">Mañana (06:00-14:00)</option>
+                                <option value="Tarde">Tarde (14:00-22:00)</option>
+                            </select>
+                        </div>
+                        <div class="input-group"><label>OPERARIO</label><input type="text" id="f_operario" value="${name}" readonly></div>
+                    </div>
+                    <table class="counters-table">
+                        <thead><tr><th>INICIO JORNADA</th><th style="width:10px"></th><th>FIN JORNADA</th></tr></thead>
+                        <tbody><tr>
+                            <td>
+                                <div class="input-row"><label>H. Molino</label><input type="number" step="0.01" id="h_mol_ini"></div>
+                                <div class="input-row"><label>H. Prod.</label><input type="number" step="0.01" id="h_prod_ini"></div>
+                                <div class="input-row"><label>Z1 (Acum)</label><input type="number" step="0.001" id="z1_ini"></div>
+                                <div class="input-row"><label>Z2 (Parc)</label><input type="number" id="z2_ini"></div>
+                            </td>
+                            <td></td>
+                            <td>
+                                <div class="input-row"><label>H. Molino</label><input type="number" step="0.01" id="h_mol_fin"></div>
+                                <div class="input-row"><label>H. Prod.</label><input type="number" step="0.01" id="h_prod_fin"></div>
+                                <div class="input-row"><label>Z1 (Acum)</label><input type="number" step="0.001" id="z1_fin"></div>
+                                <div class="input-row"><label>Z2 (Parc)</label><input type="number" id="z2_fin"></div>
+                            </td>
+                        </tr></tbody>
+                    </table>
+                    <table class="tareas-table" id="tabla-tareas">
+                        <thead><tr><th style="width:140px">Parada</th><th style="width:140px">Arranque</th><th>Tarea</th><th>Activo</th><th>Observaciones</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <button class="btn full-w" style="margin-top:10px; background:#f0f0f0;" onclick="addFilaTarea()">+ Añadir Tarea</button>
+                    <button id="btnEnviar" class="btn btn-blue full-w" style="margin-top:30px; height:50px;" onclick="enviarDatosASheets()">ENVIAR PARTE</button>
+                </div>`;
+            addFilaTarea();
+        }
+
+        function generarOpcionesHoras() {
+            const turno = document.getElementById('f_turno').value;
+            let inicio = (turno === "Mañana") ? 6 : 14;
+            let fin = (turno === "Mañana") ? 14 : 22;
+            let html = '<option value="">--:--</option>';
+            for (let h = inicio; h <= fin; h++) {
+                let maxMin = (h === fin) ? 0 : 55;
+                for (let m = 0; m <= maxMin; m += 5) {
+                    let hh = h.toString().padStart(2, '0');
+                    let mm = m.toString().padStart(2, '0');
+                    html += `<option value="${hh}:${mm}">${hh}:${mm}</option>`;
+                }
+            }
+            return html;
+        }
+
+        function actualizarTodosLosDesplegables() {
+            const nuevasOpciones = generarOpcionesHoras();
+            document.querySelectorAll('.time-select').forEach(select => { select.innerHTML = nuevasOpciones; });
+        }
+
+        function addFilaTarea() {
+            const tbody = document.querySelector('#tabla-tareas tbody');
+            const opciones = generarOpcionesHoras();
+            const row = tbody.insertRow();
+            row.className = "fila-tarea";
+            row.innerHTML = `
+                <td><select class="time-select t-parada">${opciones}</select></td>
+                <td><select class="time-select t-arranque">${opciones}</select></td>
+                <td><select style="width:100%">${tareas.map(t => `<option>${t}</option>`).join('')}</select></td>
+                <td><select style="width:100%">${activos.map(a => `<option>${a}</option>`).join('')}</select></td>
+                <td><input type="text" style="width:100%; padding:5px; box-sizing:border-box;"></td>`;
+        }
+
+        async function enviarDatosASheets() {
+            const btn = document.getElementById('btnEnviar');
+            const filas = document.querySelectorAll('.fila-tarea');
+            const tArray = [];
+            for (let f of filas) {
+                const p = f.querySelector('.t-parada').value;
+                const a = f.querySelector('.t-arranque').value;
+                if (p && a) {
+                    if (p >= a) { alert("Error: Hora de parada debe ser anterior al arranque."); return; }
+                    tArray.push({ p: p, a: a, t: f.cells[2].querySelector('select').value, ac: f.cells[3].querySelector('select').value, o: f.cells[4].querySelector('input').value });
+                }
+            }
+            btn.innerText = "Sincronizando..."; btn.disabled = true;
+            const data = {
+                fecha: document.getElementById('f_fecha').value, turno: document.getElementById('f_turno').value, operario: document.getElementById('f_operario').value, lote: document.getElementById('f_lote').value,
+                h_mol_ini: document.getElementById('h_mol_ini').value, h_prod_ini: document.getElementById('h_prod_ini').value, z1_ini: document.getElementById('z1_ini').value, z2_ini: document.getElementById('z2_ini').value,
+                h_mol_fin: document.getElementById('h_mol_fin').value, h_prod_fin: document.getElementById('h_prod_fin').value, z1_fin: document.getElementById('z1_fin').value, z2_fin: document.getElementById('z2_fin').value,
+                tareas: tArray.length > 0 ? tArray : [{p:'', a:'', t:'Sin incidencias', ac:'', o:''}]
+            };
+            try {
+                await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
+                alert("Parte enviado con éxito."); window.location.reload();
+            } catch (e) { alert("Error de conexión"); btn.disabled = false; btn.innerText = "ENVIAR PARTE"; }
+        }
+
+        // --- LÓGICA MODALES ---
+        function openModal(type) {
+            currentEditType = type;
+            document.getElementById('editModal').style.display = "block";
+            document.getElementById('modalTitle').innerText = "Editar " + type.toUpperCase();
+            updateModalList();
+        }
+        function updateModalList() {
+            const listDiv = document.getElementById('modalList');
+            let items = (currentEditType === 'activos') ? activos : tareas;
+            listDiv.innerHTML = items.map((item, index) => `<div style="padding:8px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">${item} <button onclick="removeItem(${index})" style="background:none; border:none; color:red; cursor:pointer;">✕</button></div>`).join('');
+        }
+        function saveNewItem() {
+            const v = document.getElementById('newItemInput').value;
+            if(!v) return;
+            if (currentEditType === 'activos') activos.push(v); else tareas.push(v);
+            document.getElementById('newItemInput').value = ""; updateModalList();
+        }
+        function removeItem(i) {
+            if (currentEditType === 'activos') activos.splice(i, 1); else tareas.splice(i, 1);
+            updateModalList();
+        }
+        function closeModal() { document.getElementById('editModal').style.display = "none"; }
+    </script>
+</body>
+</html>
