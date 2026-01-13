@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tradebe - Gestión Molino v4.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root { --blue: #0056b3; --green: #89b434; --orange: #e87e04; --light: #f4f7f6; --dark: #2c3e50; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--light); margin: 0; padding: 0; }
+        .page-section { display: none; }
+        .page-section.active { display: block; }
+        
+        /* Estilos Login */
+        #login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--dark); }
+        .login-card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); width: 320px; text-align: center; }
+        
+        /* Layout General */
+        .container { padding: 20px; max-width: 1100px; margin: auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 5px solid var(--blue); }
+        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 30px; border-bottom: 2px solid #ddd; }
+        
+        /* Admin Dashboard */
+        .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .admin-card { background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #eee; }
+        
+        /* Modales */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
+        .modal-content { background: white; margin: 10% auto; padding: 25px; width: 400px; border-radius: 12px; }
+        .list-edit { max-height: 250px; overflow-y: auto; border: 1px solid #eee; margin: 10px 0; padding: 10px; border-radius: 5px; background: #fafafa; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 5px; border-bottom: 1px solid #eee; }
+        
+        /* Formulario Operario */
+        .grid-header { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .input-group { display: flex; flex-direction: column; }
+        .input-group label { font-size: 0.75em; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 5px; }
+        .counters-table { width: 100%; border-collapse: collapse; margin: 20px 0; background: white; }
+        .counters-table th { background: var(--blue); color: white; padding: 10px; border: 1px solid var(--blue); font-size: 0.85em; }
+        .counters-table td { border: 1px solid #ddd; padding: 15px; width: 48%; }
+        .input-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .input-row label { font-size: 0.85em; color: #333; }
+        .input-row input { width: 110px; text-align: right; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        /* Comunes */
+        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-blue { background: var(--blue); color: white; }
+        .btn-green { background: var(--green); color: white; }
+        .btn-logout { background: #dc3545; color: white; padding: 8px 15px; }
+        .full-w { width: 100%; }
+        table.tareas-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table.tareas-table th, table.tareas-table td { border: 1px solid #ddd; padding: 10px; font-size: 0.85em; }
+        table.tareas-table th { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+    <div id="login-page" class="page-section active">
+        <div class="login-card">
+            <h2><span style="color:var(--orange)">TRADE</span><span style="color:var(--green)">BE</span></h2>
+            <input type="text" id="userInput" placeholder="Usuario" style="width:100%; margin-bottom:12px;">
+            <input type="password" id="passInput" placeholder="Contraseña" style="width:100%; margin-bottom:12px;">
+            <button class="btn btn-blue full-w" onclick="checkLogin()">Entrar</button>
+        </div>
+    </div>
+
+    <div id="app-content" class="page-section">
+        <div class="header">
+            <div style="font-weight:bold; font-size:1.1em;">MOLINO TRADEBE</div>
+            <div id="welcome-msg" style="color:var(--blue); font-weight:bold;"></div>
+            <button class="btn btn-logout" onclick="window.location.reload()">Cerrar Sesión</button>
+        </div>
+        <div class="container" id="main-view"></div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Editar</h3>
+            <div id="modalList" class="list-edit"></div>
+            <div style="display:flex; gap:8px; margin-top:15px;">
+                <input type="text" id="newItemInput" placeholder="Añadir..." style="flex:1">
+                <button class="btn btn-blue" onclick="saveNewItem()">Añadir</button>
+            </div>
+            <button class="btn full-w" style="margin-top:20px; background:#eee; color:#333;" onclick="closeModal()">Cerrar</button>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZikzgJfVQHGAFegFVuRDplxAsqNEIyDraNeFWn2v5C4YTZFijdARxm8Z0xT3J0mX5/exec";
+
+        let operarios = ["Arkadi", "Jose", "Orlando"];
+        let tareas = ["Atasco", "Cambio Martillos", "Cambio Tapas", "Explosión", "Limpieza"];
+        let activos = ["Molino", "Tromel", "Cinta 1", "Cinta 2", "Cinta 3", "Rotor", "Motor Principal"];
+        let currentEditType = "";
+
+        function checkLogin() {
+            const u = document.getElementById('userInput').value.toLowerCase();
+            const p = document.getElementById('passInput').value;
+            if (u === 'admin' && p === '1234') renderAdmin();
+            else if (operarios.map(o => o.toLowerCase()).includes(u) && p === '1234') renderOperator(u.charAt(0).toUpperCase() + u.slice(1));
+            else alert("Error de acceso");
+        }
+
+        // --- RENDER ADMIN ---
+        function renderAdmin() {
+            document.getElementById('login-page').classList.remove('active');
+            document.getElementById('app-content').classList.add('active');
+            document.getElementById('welcome-msg').innerText = "PANEL ADMINISTRADOR";
+            
+            const main = document.getElementById('main-view');
+            main.innerHTML = `
+                <div class="card" style="border-top-color: var(--green)">
+                    <div class="admin-grid">
+                        <div class="admin-card">
+                            <h4 style="margin-top:0">Descargar Reporte</h4>
+                            <div style="margin-bottom:10px">
+                                <label style="font-size:0.7em">DESDE</label><br>
+                                <input type="date" id="exp_desde" class="full-w">
+                            </div>
+                            <div style="margin-bottom:15px">
+                                <label style="font-size:0.7em">HASTA</label><br>
+                                <input type="date" id="exp_hasta" class="full-w">
+                            </div>
+                            <button class="btn btn-green full-w" onclick="exportToExcel()">GENERAR EXCEL</button>
+                        </div>
+                        <div class="admin-card">
+                            <h4 style="margin-top:0">Configuración Listas</h4>
+                            <button class="btn btn-blue full-w" style="margin-bottom:10px" onclick="openModal('operarios')">Gestionar Operarios</button>
+                            <button class="btn btn-blue full-w" style="margin-bottom:10px" onclick="openModal('activos')">Gestionar Activos</button>
+                            <button class="btn btn-blue full-w" onclick="openModal('tareas')">Gestionar Tareas</button>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        // --- RENDER OPERARIO ---
+        function renderOperator(name) {
+            document.getElementById('login-page').classList.remove('active');
+            document.getElementById('app-content').classList.add('active');
+            document.getElementById('welcome-msg').innerText = "OPERARIO: " + name;
+            const main = document.getElementById('main-view');
+            main.innerHTML = `
+                <div class="card">
+                    <div class="grid-header">
+                        <div class="input-group"><label>LOTE</label><input type="text" id="f_lote"></div>
+                        <div class="input-group"><label>FECHA</label><input type="text" id="f_fecha" value="${new Date().toLocaleDateString()}" readonly style="background:#f0f0f0"></div>
+                        <div class="input-group"><label>TURNO</label><select id="f_turno"><option>Mañana</option><option>Tarde</option></select></div>
+                        <div class="input-group"><label>OPERARIO</label><input type="text" id="f_operario" value="${name}" readonly style="background:#f0f0f0"></div>
+                    </div>
+                    <table class="counters-table">
+                        <thead><tr><th>INICIO JORNADA</th><th style="background:none;border:none;width:10px"></th><th>FIN JORNADA</th></tr></thead>
+                        <tbody><tr>
+                            <td>
+                                <div class="input-row"><label>H. Molino</label><input type="number" id="h_mol_ini"></div>
+                                <div class="input-row"><label>H. Prod.</label><input type="number" id="h_prod_ini"></div>
+                                <div class="input-row"><label>Z1 (Acum)</label><input type="number" id="z1_ini"></div>
+                                <div class="input-row"><label>Z2 (Parc)</label><input type="number" id="z2_ini"></div>
+                            </td>
+                            <td style="border:none"></td>
+                            <td>
+                                <div class="input-row"><label>H. Molino</label><input type="number" id="h_mol_fin"></div>
+                                <div class="input-row"><label>H. Prod.</label><input type="number" id="h_prod_fin"></div>
+                                <div class="input-row"><label>Z1 (Acum)</label><input type="number" id="z1_fin"></div>
+                                <div class="input-row"><label>Z2 (Parc)</label><input type="number" id="z2_fin"></div>
+                            </td>
+                        </tr></tbody>
+                    </table>
+                    <table class="tareas-table" id="tabla-tareas">
+                        <thead><tr><th>Parada</th><th>Arranque</th><th>Tarea</th><th>Activo</th><th>Obs.</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <button class="btn full-w" style="margin-top:10px; background:#f8f9fa; border:1px dashed #ccc" onclick="addFilaTarea()">+ Añadir Línea de Registro</button>
+                    <button id="btnEnviar" class="btn btn-blue full-w" style="margin-top:30px;height:55px" onclick="enviarDatosASheets()">ENVIAR PARTE FINALIZADO</button>
+                </div>`;
+            addFilaTarea();
+        }
+
+        function addFilaTarea() {
+            const tbody = document.querySelector('#tabla-tareas tbody');
+            const row = tbody.insertRow();
+            row.className = "fila-tarea";
+            row.innerHTML = `
+                <td><input type="time" class="t-parada" style="width:100%"></td>
+                <td><input type="time" class="t-arranque" style="width:100%"></td>
+                <td><select class="t-tarea" style="width:100%">${tareas.map(t => `<option>${t}</option>`).join('')}</select></td>
+                <td><select class="t-activo" style="width:100%">${activos.map(a => `<option>${a}</option>`).join('')}</select></td>
+                <td><input type="text" class="t-obs" style="width:100%"></td>`;
+        }
+
+        async function enviarDatosASheets() {
+            const btn = document.getElementById('btnEnviar');
+            btn.innerText = "Enviando...";
+            btn.disabled = true;
+
+            const tareasArray = [];
+            document.querySelectorAll('.fila-tarea').forEach(fila => {
+                const p = fila.querySelector('.t-parada').value;
+                const a = fila.querySelector('.t-arranque').value;
+                if(p || a || fila.querySelector('.t-obs').value) {
+                    tareasArray.push({
+                        p: p,
+                        a: a,
+                        t: fila.querySelector('.t-tarea').value,
+                        ac: fila.querySelector('.t-activo').value,
+                        o: fila.querySelector('.t-obs').value
+                    });
+                }
+            });
+
+            if (tareasArray.length === 0) tareasArray.push({p:'', a:'', t:'Sin tareas', ac:'', o:''});
+
+            const data = {
+                fecha: document.getElementById('f_fecha').value,
+                turno: document.getElementById('f_turno').value,
+                operario: document.getElementById('f_operario').value,
+                lote: document.getElementById('f_lote').value,
+                h_mol_ini: document.getElementById('h_mol_ini').value,
+                h_prod_ini: document.getElementById('h_prod_ini').value,
+                z1_ini: document.getElementById('z1_ini').value,
+                z2_ini: document.getElementById('z2_ini').value,
+                h_mol_fin: document.getElementById('h_mol_fin').value,
+                h_prod_fin: document.getElementById('h_prod_fin').value,
+                z1_fin: document.getElementById('z1_fin').value,
+                z2_fin: document.getElementById('z2_fin').value,
+                tareas: tareasArray
+            };
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify(data)
+                });
+                alert("Parte guardado correctamente.");
+                window.location.reload();
+            } catch (e) {
+                alert("Error de conexión.");
+                btn.disabled = false;
+                btn.innerText = "REINTENTAR ENVÍO";
+            }
+        }
+
+        // --- GESTIÓN MODAL ---
+        function openModal(type) {
+            currentEditType = type;
+            document.getElementById('editModal').style.display = "block";
+            document.getElementById('modalTitle').innerText = "Editar " + type.toUpperCase();
+            updateModalList();
+        }
+        function updateModalList() {
+            const listDiv = document.getElementById('modalList');
+            let items = (currentEditType === 'operarios') ? operarios : (currentEditType === 'activos') ? activos : tareas;
+            listDiv.innerHTML = items.map((item, index) => `
+                <div class="list-item">
+                    <span>${item}</span>
+                    <button style="color:red; border:none; background:none; cursor:pointer;" onclick="removeItem(${index})">✕</button>
+                </div>`).join('');
+        }
+        function saveNewItem() {
+            const val = document.getElementById('newItemInput').value.trim();
+            if(!val) return;
+            if (currentEditType === 'operarios') operarios.push(val);
+            else if (currentEditType === 'activos') activos.push(val);
+            else tareas.push(val);
+            document.getElementById('newItemInput').value = "";
+            updateModalList();
+        }
+        function removeItem(index) {
+            let list = (currentEditType === 'operarios') ? operarios : (currentEditType === 'activos') ? activos : tareas;
+            list.splice(index, 1);
+            updateModalList();
+        }
+        function closeModal() { document.getElementById('editModal').style.display = "none"; }
+
+        function exportToExcel() {
+            const d1 = document.getElementById('exp_desde').value;
+            const d2 = document.getElementById('exp_hasta').value;
+            if(!d1 || !d2) { alert("Selecciona primero las fechas"); return; }
+            
+            const dummyData = [{ Aviso: "Abre tu Google Sheets para descargar el reporte real. Este es un archivo de prueba." }];
+            const ws = XLSX.utils.json_to_sheet(dummyData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Produccion");
+            XLSX.writeFile(wb, `Tradebe_Reporte_${d1}_a_${d2}.xlsx`);
+        }
+    </script>
+</body>
+</html>
