@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Tradebe Molino v7.4</title>
+    <title>Tradebe Molino v7.8</title>
     <style>
         :root { --blue: #0056b3; --green: #89b434; --orange: #e87e04; --light: #f4f7f6; --dark: #2c3e50; --border: #e0e0e0; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--light); margin: 0; padding: 0; text-align: center; color: var(--dark); }
@@ -14,11 +14,16 @@
         .container { padding: 20px; max-width: 1200px; margin: auto; }
         .card { background: white; padding: 20px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: left; }
         .section-title { font-size: 0.85em; font-weight: bold; color: var(--blue); border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase; }
+        .counters-box { display: flex; justify-content: space-evenly; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #efefef; margin: 15px 0; }
+        .counter-group { flex: 0 1 280px; }
+        .input-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .input-row input { width: 95px; text-align: center; padding: 5px; border: 1px solid #ddd; border-radius: 4px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.8em; }
-        th { padding: 10px; border-bottom: 2px solid var(--blue); background: #f8f9fa; }
+        th { padding: 10px; border-bottom: 2px solid var(--blue); background: #f8f9fa; text-align: left; }
         td { padding: 8px; border-bottom: 1px solid #f0f0f0; }
         .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .btn-blue { background: var(--blue); color: white; }
+        .btn-green { background: var(--green); color: white; margin-left: 10px; }
         .full-w { width: 100%; }
         input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
     </style>
@@ -31,22 +36,23 @@
             <input type="text" id="u" placeholder="Usuario" class="full-w" style="margin-bottom:10px">
             <input type="password" id="p" placeholder="Contraseña" class="full-w" style="margin-bottom:20px">
             <button class="btn btn-blue full-w" id="btnLogin" onclick="login()">ENTRAR</button>
-            <div id="load-msg" style="color:var(--orange); font-size:0.8em; margin-top:15px; display:none;">VALIDANDO...</div>
+            <div id="load-msg" style="color:var(--orange); font-size:0.8em; margin-top:15px; display:none; font-weight:bold;">SINCRONIZANDO CON EXCEL...</div>
         </div>
     </div>
 
     <div id="app" class="page-section">
         <div class="header">
-            <div style="font-weight:bold; color:var(--blue)">SISTEMA MOLINO</div>
+            <div style="font-weight:bold; color:var(--blue)">SISTEMA MOLINO TRADEBE</div>
             <div id="user-tag" style="font-size:0.9em; font-weight:bold"></div>
-            <button onclick="window.location.reload()" style="background:none; border:1px solid #ccc; padding:5px 10px; cursor:pointer; border-radius:4px">Salir</button>
+            <button onclick="window.location.reload()" style="background:none; border:1px solid #ccc; padding:5px 10px; cursor:pointer; border-radius:4px">Cerrar Sesión</button>
         </div>
         <div class="container" id="view"></div>
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxgfQUN5r87-i8sTCmjbO87GcVfLCpjXOdKl61X-AogNNsHXEOFPoT2svmKFcReE7B2/exec";
-        let activos = [], tareas = [], excelCreds = {};
+        // URL ACTUALIZADA
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzVOf-ZAbxKcSeLahTA5G4xYLtBhonYSMQdM39W_bB-LcGs6qmuJ2rt8Hc1j0RQlgTf/exec";
+        let activos = [], tareas = [], excelCreds = {}, reporteActual = [];
 
         async function login() {
             const user = document.getElementById('u').value.toLowerCase().trim();
@@ -57,24 +63,26 @@
             try {
                 const response = await fetch(SCRIPT_URL);
                 const data = await response.json();
+                if(data.error) throw new Error(data.error);
+
                 activos = data.activos; tareas = data.tareas; excelCreds = data.credenciales;
 
                 if ((user === 'admin' && pass === '1234') || (excelCreds[user] && excelCreds[user].toString() === pass)) {
                     document.getElementById('login-page').classList.remove('active');
                     document.getElementById('app').classList.add('active');
                     if (user === 'admin') renderAdmin(); else renderOperario(user);
-                } else { alert("Acceso denegado"); location.reload(); }
-            } catch (e) { alert("Error de red"); location.reload(); }
+                } else { alert("Usuario o Contraseña incorrectos"); location.reload(); }
+            } catch (e) { alert("Error de conexión: " + e.message); location.reload(); }
         }
 
         function renderAdmin() {
-            document.getElementById('user-tag').innerText = "ADMINISTRADOR";
+            document.getElementById('user-tag').innerText = "MODO: ADMINISTRADOR";
             document.getElementById('view').innerHTML = `
                 <div class="card">
-                    <div class="section-title">Configuración Maestros</div>
+                    <div class="section-title">Panel de Control (Maestros)</div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:15px">
-                        <div><label>TAREA</label><br><input type="text" id="nT"><button class="btn-blue" onclick="addExt('addTarea', 'nT')">+</button></div>
-                        <div><label>ACTIVO</label><br><input type="text" id="nA"><button class="btn-blue" onclick="addExt('addActivo', 'nA')">+</button></div>
+                        <div><label>TAREA</label><br><input type="text" id="nT" style="width:60%"><button class="btn-blue" onclick="addExt('addTarea', 'nT')">+</button></div>
+                        <div><label>ACTIVO</label><br><input type="text" id="nA" style="width:60%"><button class="btn-blue" onclick="addExt('addActivo', 'nA')">+</button></div>
                         <div><label>OPERARIO</label><br>
                             <input type="text" id="nOp" placeholder="User" style="width:40%">
                             <input type="text" id="pOp" placeholder="Pass" style="width:30%">
@@ -83,11 +91,12 @@
                     </div>
                 </div>
                 <div class="card">
-                    <div class="section-title">Informe de Datos</div>
+                    <div class="section-title">Generación de Reportes</div>
                     <div style="display:flex; gap:10px; margin-bottom:15px; align-items:flex-end">
                         <div>Desde:<br><input type="date" id="f_ini"></div>
                         <div>Hasta:<br><input type="date" id="f_fin"></div>
-                        <button class="btn btn-blue" onclick="generarReporte()">GENERAR REPORTE</button>
+                        <button class="btn btn-blue" onclick="generarReporte()">CONSULTAR</button>
+                        <button id="btnDownload" class="btn btn-green" style="display:none" onclick="descargarCSV()">DESCARGAR CSV</button>
                     </div>
                     <div id="report-output" style="max-height:400px; overflow-y:auto; border:1px solid #eee"></div>
                 </div>`;
@@ -100,29 +109,56 @@
             if (!finiStr || !ffinStr) return;
             const fini = new Date(finiStr); fini.setHours(0,0,0,0);
             const ffin = new Date(ffinStr); ffin.setHours(23,59,59,999);
-            out.innerHTML = "Buscando...";
+            out.innerHTML = "Extrayendo información de Excel...";
+            document.getElementById('btnDownload').style.display = "none";
+            
             try {
                 const res = await fetch(SCRIPT_URL + "?action=getReport");
                 const dataRows = await res.json();
-                let html = `<table><thead><tr><th>Fecha</th><th>Turno</th><th>Operario</th><th>Tarea</th><th>Activo</th><th>Parada</th><th>Arranque</th></tr></thead><tbody>`;
-                let hay = false;
+                if(dataRows.error) throw new Error(dataRows.error);
+
+                reporteActual = [];
+                let html = `<table><thead><tr><th>Fecha</th><th>Turno</th><th>Operario</th><th>Lote</th><th>Tarea</th><th>Activo</th><th>Pausa</th><th>Arranque</th></tr></thead><tbody>`;
+                
                 dataRows.forEach(row => {
                     const p = row[0].split("/");
                     const d = new Date(p[2], p[1]-1, p[0]);
                     if (d >= fini && d <= ffin) {
-                        html += `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[14]}</td><td>${row[15]}</td><td>${row[12]}</td><td>${row[13]}</td></tr>`;
-                        hay = true;
+                        html += `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[14]}</td><td>${row[15]}</td><td>${row[12]}</td><td>${row[13]}</td></tr>`;
+                        reporteActual.push(row);
                     }
                 });
-                out.innerHTML = hay ? html + "</tbody></table>" : "Sin datos en ese rango.";
-            } catch (e) { out.innerHTML = "Error al leer."; }
+
+                if(reporteActual.length > 0) {
+                    out.innerHTML = html + "</tbody></table>";
+                    document.getElementById('btnDownload').style.display = "inline-block";
+                } else {
+                    out.innerHTML = "No se encontraron datos en ese rango de fechas.";
+                }
+            } catch (e) { out.innerHTML = "Error al conectar: " + e.message; }
+        }
+
+        function descargarCSV() {
+            let csvContent = "\uFEFF"; // BOM para Excel
+            csvContent += "Fecha,Turno,Operario,Lote,H_Mol_I,H_Prod_I,Z1_I,Z2_I,H_Mol_F,H_Prod_F,Z1_F,Z2_F,Parada,Arranque,Tarea,Activo,Obs\n";
+            reporteActual.forEach(row => {
+                csvContent += row.map(c => `"${c}"`).join(",") + "\n";
+            });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `Reporte_Molino_${new Date().toLocaleDateString()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         async function addExt(acc, inp) {
             const val = document.getElementById(inp).value;
             if(!val) return;
             fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: acc, valor: val }) });
-            alert("Grabado en Excel."); document.getElementById(inp).value = "";
+            alert("Grabado. Reinicie sesión para ver los cambios.");
+            document.getElementById(inp).value = "";
         }
 
         async function addOperario() {
@@ -130,35 +166,41 @@
             const pass = document.getElementById('pOp').value;
             if(!nombre || !pass) return;
             fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: 'addOperario', nombre, pass }) });
-            alert("Operario creado."); document.getElementById('nOp').value = ""; document.getElementById('pOp').value = "";
+            alert("Operario creado correctamente.");
+            document.getElementById('nOp').value = ""; document.getElementById('pOp').value = "";
         }
 
         function renderOperario(name) {
             document.getElementById('user-tag').innerText = "OPERARIO: " + name.toUpperCase();
             document.getElementById('view').innerHTML = `
                 <div class="card">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:15px">
-                        <div style="flex:1">Lote<br><input type="text" id="f_lote" class="full-w"></div>
-                        <div style="flex:1">Turno<br><select id="f_turno" class="full-w" onchange="resetHoras()"><option>Mañana</option><option>Tarde</option></select></div>
-                        <div style="flex:1">Fecha<br><input type="text" value="${new Date().toLocaleDateString()}" readonly style="width:100%; background:#eee"></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:15px; gap:10px">
+                        <div style="flex:1"><label>Lote</label><br><input type="text" id="f_lote" class="full-w"></div>
+                        <div style="flex:1"><label>Turno</label><br><select id="f_turno" class="full-w" onchange="resetHoras()"><option>Mañana</option><option>Tarde</option></select></div>
+                        <div style="flex:1"><label>Fecha</label><br><input type="text" value="${new Date().toLocaleDateString()}" readonly style="width:100%; background:#f5f5f5"></div>
                     </div>
-                    <div class="section-title">Contadores</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; background:#f9f9f9; padding:15px; border-radius:8px">
-                        <div>
-                            <div style="display:flex; justify-content:space-between">H.Mol. I <input type="number" id="hmi" style="width:80px"></div>
-                            <div style="display:flex; justify-content:space-between; margin-top:5px">Z1 I <input type="number" id="z1i" style="width:80px"></div>
+                    <div class="section-title">Contadores (Inicio y Fin)</div>
+                    <div class="counters-box">
+                        <div class="counter-group">
+                            <div class="input-row"><label>H. Molino I</label><input type="number" step="0.01" id="hmi"></div>
+                            <div class="input-row"><label>H. Prod I</label><input type="number" step="0.01" id="hpi"></div>
+                            <div class="input-row"><label>Z1 I</label><input type="number" step="0.001" id="z1i"></div>
+                            <div class="input-row"><label>Z2 I</label><input type="number" id="z2i"></div>
                         </div>
-                        <div>
-                            <div style="display:flex; justify-content:space-between">H.Mol. F <input type="number" id="hmf" style="width:80px"></div>
-                            <div style="display:flex; justify-content:space-between; margin-top:5px">Z1 F <input type="number" id="z1f" style="width:80px"></div>
+                        <div style="border-left:1px solid #eee"></div>
+                        <div class="counter-group">
+                            <div class="input-row"><label>H. Molino F</label><input type="number" step="0.01" id="hmf"></div>
+                            <div class="input-row"><label>H. Prod F</label><input type="number" step="0.01" id="hpf"></div>
+                            <div class="input-row"><label>Z1 F</label><input type="number" step="0.001" id="z1f"></div>
+                            <div class="input-row"><label>Z2 F</label><input type="number" id="z2f"></div>
                         </div>
                     </div>
                     <table id="t-tareas">
                         <thead><tr><th>Parada</th><th>Arranque</th><th>Tarea</th><th>Activo</th><th>Obs.</th></tr></thead>
                         <tbody></tbody>
                     </table>
-                    <button onclick="addFila()" style="margin-top:10px">+ Línea</button>
-                    <button id="btnSend" class="btn btn-blue full-w" style="margin-top:20px; height:50px" onclick="enviar()">ENVIAR PARTE</button>
+                    <button onclick="addFila()" style="margin-top:10px">+ Añadir Fila</button>
+                    <button id="btnSend" class="btn btn-blue full-w" style="margin-top:25px; height:50px" onclick="enviar()">ENVIAR PARTE A EXCEL</button>
                 </div>`;
             addFila();
         }
@@ -191,18 +233,20 @@
             const filas = Array.from(document.querySelectorAll('#t-tareas tbody tr'));
             for (let tr of filas) {
                 const p = tr.querySelector('.p').value, a = tr.querySelector('.a').value;
-                if (p && a && a <= p) { alert("Error: Arranque debe ser mayor que Parada"); return; }
+                if (p && a && a <= p) { alert("Error: Hora arranque debe ser posterior a parada."); return; }
             }
             document.getElementById('btnSend').disabled = true;
             const data = {
                 fecha: new Date().toLocaleDateString(), turno: document.getElementById('f_turno').value,
                 operario: document.getElementById('user-tag').innerText.replace("OPERARIO: ",""), lote: document.getElementById('f_lote').value,
-                h_mol_ini: document.getElementById('hmi').value, h_prod_ini: 0, z1_ini: document.getElementById('z1i').value, z2_ini: 0,
-                h_mol_fin: document.getElementById('hmf').value, h_prod_fin: 0, z1_fin: document.getElementById('z1f').value, z2_fin: 0,
+                h_mol_ini: document.getElementById('hmi').value, h_prod_ini: document.getElementById('hpi').value, 
+                z1_ini: document.getElementById('z1i').value, z2_ini: document.getElementById('z2i').value,
+                h_mol_fin: document.getElementById('hmf').value, h_prod_fin: document.getElementById('hpf').value, 
+                z1_fin: document.getElementById('z1f').value, z2_fin: document.getElementById('z2f').value,
                 tareas: filas.map(tr => ({ p: tr.querySelector('.p').value, a: tr.querySelector('.a').value, t: tr.cells[2].querySelector('select').value, ac: tr.cells[3].querySelector('select').value, o: tr.querySelector('.obs').value }))
             };
             await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
-            alert("Enviado."); window.location.reload();
+            alert("Información grabada en el archivo de Excel."); window.location.reload();
         }
     </script>
 </body>
