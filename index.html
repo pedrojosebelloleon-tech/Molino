@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Tradebe Molino v6.9</title>
+    <title>Tradebe Molino v7.4</title>
     <style>
         :root { --blue: #0056b3; --green: #89b434; --orange: #e87e04; --light: #f4f7f6; --dark: #2c3e50; --border: #e0e0e0; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--light); margin: 0; padding: 0; text-align: center; color: var(--dark); }
@@ -11,21 +11,16 @@
         #login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--dark); }
         .login-card { background: white; padding: 40px; border-radius: 15px; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
         .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 30px; border-bottom: 1px solid var(--border); }
-        .container { padding: 20px; max-width: 1100px; margin: auto; }
-        .card { background: white; padding: 25px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
+        .container { padding: 20px; max-width: 1200px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: left; }
         .section-title { font-size: 0.85em; font-weight: bold; color: var(--blue); border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase; }
-        .counters-box { display: flex; justify-content: space-evenly; background: #fafafa; padding: 20px; border-radius: 8px; border: 1px solid #efefef; margin: 15px 0; }
-        .counter-group { flex: 0 1 280px; }
-        .input-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .input-row input { width: 95px; text-align: center; padding: 5px; border: 1px solid #ddd; border-radius: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
-        th { padding: 12px; border-bottom: 2px solid var(--blue); background: #f8f9fa; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.8em; }
+        th { padding: 10px; border-bottom: 2px solid var(--blue); background: #f8f9fa; }
         td { padding: 8px; border-bottom: 1px solid #f0f0f0; }
-        .btn { padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .btn-blue { background: var(--blue); color: white; }
         .full-w { width: 100%; }
-        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align-last: center; }
-        .error-h { border: 2px solid red !important; background: #fee !important; }
+        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -36,126 +31,150 @@
             <input type="text" id="u" placeholder="Usuario" class="full-w" style="margin-bottom:10px">
             <input type="password" id="p" placeholder="Contraseña" class="full-w" style="margin-bottom:20px">
             <button class="btn btn-blue full-w" id="btnLogin" onclick="login()">ENTRAR</button>
-            <div id="load-msg" style="color:var(--orange); font-size:0.8em; margin-top:15px; display:none; font-weight:bold;">SINCRONIZANDO CON EXCEL...</div>
+            <div id="load-msg" style="color:var(--orange); font-size:0.8em; margin-top:15px; display:none;">VALIDANDO...</div>
         </div>
     </div>
 
     <div id="app" class="page-section">
         <div class="header">
-            <div style="font-weight:bold; color:var(--blue)">SISTEMA MOLINO TRADEBE</div>
+            <div style="font-weight:bold; color:var(--blue)">SISTEMA MOLINO</div>
             <div id="user-tag" style="font-size:0.9em; font-weight:bold"></div>
-            <button onclick="window.location.reload()" style="background:none; border:1px solid #ccc; padding:5px 10px; cursor:pointer; border-radius:4px">Cerrar Sesión</button>
+            <button onclick="window.location.reload()" style="background:none; border:1px solid #ccc; padding:5px 10px; cursor:pointer; border-radius:4px">Salir</button>
         </div>
         <div class="container" id="view"></div>
     </div>
 
     <script>
-        // URL ACTUALIZADA
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyGr_EBwq_5kqQhLQc9QCRIQDL6YdpW0mtl_F-vxJ-07NnXWCbL-sDx69wUZnTMjFsc/exec";
-        
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxgfQUN5r87-i8sTCmjbO87GcVfLCpjXOdKl61X-AogNNsHXEOFPoT2svmKFcReE7B2/exec";
         let activos = [], tareas = [], excelCreds = {};
 
         async function login() {
             const user = document.getElementById('u').value.toLowerCase().trim();
             const pass = document.getElementById('p').value;
-
             document.getElementById('btnLogin').disabled = true;
             document.getElementById('load-msg').style.display = "block";
 
             try {
                 const response = await fetch(SCRIPT_URL);
                 const data = await response.json();
-                activos = data.activos;
-                tareas = data.tareas;
-                excelCreds = data.credenciales;
+                activos = data.activos; tareas = data.tareas; excelCreds = data.credenciales;
 
-                // Validación: Admin fijo o Usuario desde Excel (Col C y D)
                 if ((user === 'admin' && pass === '1234') || (excelCreds[user] && excelCreds[user].toString() === pass)) {
                     document.getElementById('login-page').classList.remove('active');
                     document.getElementById('app').classList.add('active');
                     if (user === 'admin') renderAdmin(); else renderOperario(user);
-                } else {
-                    alert("Credenciales incorrectas. Revisa el Excel (Pestaña config, Col C y D).");
-                    location.reload();
-                }
-            } catch (e) {
-                alert("Error crítico de conexión. Verifica que el Script esté publicado correctamente.");
-                location.reload();
-            }
+                } else { alert("Acceso denegado"); location.reload(); }
+            } catch (e) { alert("Error de red"); location.reload(); }
         }
 
         function renderAdmin() {
-            document.getElementById('user-tag').innerText = "MODO: ADMINISTRADOR";
+            document.getElementById('user-tag').innerText = "ADMINISTRADOR";
             document.getElementById('view').innerHTML = `
                 <div class="card">
-                    <div class="section-title">Añadir a Listas Maestras</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px">
-                        <div><label style="font-size:0.7em">TAREA</label><br><input type="text" id="newT" style="width:60%"><button class="btn-blue" onclick="addExt('addTarea', 'newT')">+</button></div>
-                        <div><label style="font-size:0.7em">ACTIVO</label><br><input type="text" id="newA" style="width:60%"><button class="btn-blue" onclick="addExt('addActivo', 'newA')">+</button></div>
+                    <div class="section-title">Configuración Maestros</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:15px">
+                        <div><label>TAREA</label><br><input type="text" id="nT"><button class="btn-blue" onclick="addExt('addTarea', 'nT')">+</button></div>
+                        <div><label>ACTIVO</label><br><input type="text" id="nA"><button class="btn-blue" onclick="addExt('addActivo', 'nA')">+</button></div>
+                        <div><label>OPERARIO</label><br>
+                            <input type="text" id="nOp" placeholder="User" style="width:40%">
+                            <input type="text" id="pOp" placeholder="Pass" style="width:30%">
+                            <button class="btn-blue" onclick="addOperario()">+</button>
+                        </div>
                     </div>
+                </div>
+                <div class="card">
+                    <div class="section-title">Informe de Datos</div>
+                    <div style="display:flex; gap:10px; margin-bottom:15px; align-items:flex-end">
+                        <div>Desde:<br><input type="date" id="f_ini"></div>
+                        <div>Hasta:<br><input type="date" id="f_fin"></div>
+                        <button class="btn btn-blue" onclick="generarReporte()">GENERAR REPORTE</button>
+                    </div>
+                    <div id="report-output" style="max-height:400px; overflow-y:auto; border:1px solid #eee"></div>
                 </div>`;
+        }
+
+        async function generarReporte() {
+            const out = document.getElementById('report-output');
+            const finiStr = document.getElementById('f_ini').value;
+            const ffinStr = document.getElementById('f_fin').value;
+            if (!finiStr || !ffinStr) return;
+            const fini = new Date(finiStr); fini.setHours(0,0,0,0);
+            const ffin = new Date(ffinStr); ffin.setHours(23,59,59,999);
+            out.innerHTML = "Buscando...";
+            try {
+                const res = await fetch(SCRIPT_URL + "?action=getReport");
+                const dataRows = await res.json();
+                let html = `<table><thead><tr><th>Fecha</th><th>Turno</th><th>Operario</th><th>Tarea</th><th>Activo</th><th>Parada</th><th>Arranque</th></tr></thead><tbody>`;
+                let hay = false;
+                dataRows.forEach(row => {
+                    const p = row[0].split("/");
+                    const d = new Date(p[2], p[1]-1, p[0]);
+                    if (d >= fini && d <= ffin) {
+                        html += `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[14]}</td><td>${row[15]}</td><td>${row[12]}</td><td>${row[13]}</td></tr>`;
+                        hay = true;
+                    }
+                });
+                out.innerHTML = hay ? html + "</tbody></table>" : "Sin datos en ese rango.";
+            } catch (e) { out.innerHTML = "Error al leer."; }
         }
 
         async function addExt(acc, inp) {
             const val = document.getElementById(inp).value;
             if(!val) return;
             fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: acc, valor: val }) });
-            alert("Solicitud enviada. Los cambios aparecerán en el próximo inicio de sesión.");
-            document.getElementById(inp).value = "";
+            alert("Grabado en Excel."); document.getElementById(inp).value = "";
+        }
+
+        async function addOperario() {
+            const nombre = document.getElementById('nOp').value.toLowerCase().trim();
+            const pass = document.getElementById('pOp').value;
+            if(!nombre || !pass) return;
+            fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: 'addOperario', nombre, pass }) });
+            alert("Operario creado."); document.getElementById('nOp').value = ""; document.getElementById('pOp').value = "";
         }
 
         function renderOperario(name) {
             document.getElementById('user-tag').innerText = "OPERARIO: " + name.toUpperCase();
             document.getElementById('view').innerHTML = `
                 <div class="card">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:20px; gap:10px">
-                        <div style="flex:1"><label>Lote</label><br><input type="text" id="f_lote" class="full-w"></div>
-                        <div style="flex:1"><label>Turno</label><br><select id="f_turno" class="full-w" onchange="resetHoras()"><option>Mañana</option><option>Tarde</option></select></div>
-                        <div style="flex:1"><label>Fecha</label><br><input type="text" value="${new Date().toLocaleDateString()}" readonly style="width:100%; background:#f9f9f9"></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:15px">
+                        <div style="flex:1">Lote<br><input type="text" id="f_lote" class="full-w"></div>
+                        <div style="flex:1">Turno<br><select id="f_turno" class="full-w" onchange="resetHoras()"><option>Mañana</option><option>Tarde</option></select></div>
+                        <div style="flex:1">Fecha<br><input type="text" value="${new Date().toLocaleDateString()}" readonly style="width:100%; background:#eee"></div>
                     </div>
-                    <div class="section-title">Contadores (Z1, Z2 y Horas)</div>
-                    <div class="counters-box">
-                        <div class="counter-group">
-                            <div class="input-row"><label>H. Molino</label><input type="number" step="0.01" id="hmi"></div>
-                            <div class="input-row"><label>H. Prod</label><input type="number" step="0.01" id="hpi"></div>
-                            <div class="input-row"><label>Z1 Acum</label><input type="number" step="0.001" id="z1i"></div>
-                            <div class="input-row"><label>Z2 Acum</label><input type="number" id="z2i"></div>
+                    <div class="section-title">Contadores</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; background:#f9f9f9; padding:15px; border-radius:8px">
+                        <div>
+                            <div style="display:flex; justify-content:space-between">H.Mol. I <input type="number" id="hmi" style="width:80px"></div>
+                            <div style="display:flex; justify-content:space-between; margin-top:5px">Z1 I <input type="number" id="z1i" style="width:80px"></div>
                         </div>
-                        <div style="border-left:1px solid #eee"></div>
-                        <div class="counter-group">
-                            <div class="input-row"><label>H. Molino</label><input type="number" step="0.01" id="hmf"></div>
-                            <div class="input-row"><label>H. Prod</label><input type="number" step="0.01" id="hpf"></div>
-                            <div class="input-row"><label>Z1 Acum</label><input type="number" step="0.001" id="z1f"></div>
-                            <div class="input-row"><label>Z2 Acum</label><input type="number" id="z2f"></div>
+                        <div>
+                            <div style="display:flex; justify-content:space-between">H.Mol. F <input type="number" id="hmf" style="width:80px"></div>
+                            <div style="display:flex; justify-content:space-between; margin-top:5px">Z1 F <input type="number" id="z1f" style="width:80px"></div>
                         </div>
                     </div>
-                    <div class="section-title">Incidencias y Tareas</div>
                     <table id="t-tareas">
-                        <thead><tr><th>Parada</th><th>Arranque</th><th>Tarea</th><th>Activo</th><th>Observaciones</th></tr></thead>
+                        <thead><tr><th>Parada</th><th>Arranque</th><th>Tarea</th><th>Activo</th><th>Obs.</th></tr></thead>
                         <tbody></tbody>
                     </table>
-                    <button onclick="addFila()" style="margin-top:15px; border:1px solid var(--blue); background:none; color:var(--blue); padding:5px 15px; cursor:pointer; border-radius:4px; font-weight:bold">+ Nueva Línea</button>
-                    <button id="btnSend" class="btn btn-blue full-w" style="margin-top:30px; height:55px; font-size:1.1em" onclick="enviar()">ENVIAR PARTE A EXCEL</button>
+                    <button onclick="addFila()" style="margin-top:10px">+ Línea</button>
+                    <button id="btnSend" class="btn btn-blue full-w" style="margin-top:20px; height:50px" onclick="enviar()">ENVIAR PARTE</button>
                 </div>`;
             addFila();
         }
 
         function addFila() {
-            const tb = document.querySelector('#t-tareas tbody');
             const h = genH();
-            const r = tb.insertRow();
-            r.innerHTML = `
-                <td><select class="p" onchange="validarFila(this.parentElement.parentElement)">${h}</select></td>
-                <td><select class="a" onchange="validarFila(this.parentElement.parentElement)">${h}</select></td>
+            const r = document.querySelector('#t-tareas tbody').insertRow();
+            r.innerHTML = `<td><select class="p">${h}</select></td><td><select class="a">${h}</select></td>
                 <td><select style="width:100%">${tareas.map(t=>`<option>${t}</option>`).join('')}</select></td>
                 <td><select style="width:100%">${activos.map(a=>`<option>${a}</option>`).join('')}</select></td>
-                <td><input type="text" class="obs" style="width:90%; padding:5px" placeholder="..."></td>`;
+                <td><input type="text" class="obs" style="width:90%"></td>`;
         }
 
         function genH() {
             const t = document.getElementById('f_turno').value;
-            let i = (t === "Mañana") ? 6 : 14, f = (t === "Mañana") ? 14 : 22;
-            let html = '<option value="">--:--</option>';
+            let i = (t === "Mañana") ? 6 : 14, f = (t === "Mañana") ? 14 : 22, html = '<option value="">--:--</option>';
             for (let h = i; h <= f; h++) {
                 for (let m = 0; m < 60; m += 5) {
                     if(h === f && m > 0) break;
@@ -166,63 +185,24 @@
             return html;
         }
 
-        function resetHoras() {
-            const h = genH();
-            document.querySelectorAll('#t-tareas select.p, #t-tareas select.a').forEach(s => s.innerHTML = h);
-        }
-
-        function validarFila(tr) {
-            const p = tr.querySelector('.p').value;
-            const a = tr.querySelector('.a').value;
-            if (p && a && a <= p) {
-                tr.querySelector('.a').classList.add('error-h');
-                return false;
-            } else {
-                tr.querySelector('.a').classList.remove('error-h');
-                return true;
-            }
-        }
+        function resetHoras() { document.querySelectorAll('#t-tareas select.p, #t-tareas select.a').forEach(s => s.innerHTML = genH()); }
 
         async function enviar() {
-            const b = document.getElementById('btnSend');
             const filas = Array.from(document.querySelectorAll('#t-tareas tbody tr'));
-            
-            // VALIDACIÓN ANTES DE ENVIAR
-            let error = false;
-            filas.forEach(tr => { if(!validarFila(tr)) error = true; });
-            
-            if (error) {
-                alert("Atención: Hay horarios de arranque anteriores o iguales a la parada (marcados en rojo). Por favor, corrígelos.");
-                return;
+            for (let tr of filas) {
+                const p = tr.querySelector('.p').value, a = tr.querySelector('.a').value;
+                if (p && a && a <= p) { alert("Error: Arranque debe ser mayor que Parada"); return; }
             }
-
-            b.innerText = "Sincronizando..."; b.disabled = true;
-            
+            document.getElementById('btnSend').disabled = true;
             const data = {
-                fecha: new Date().toLocaleDateString(),
-                turno: document.getElementById('f_turno').value,
-                operario: document.getElementById('user-tag').innerText.replace("OPERARIO: ",""),
-                lote: document.getElementById('f_lote').value,
-                h_mol_ini: document.getElementById('hmi').value,
-                h_prod_ini: document.getElementById('hpi').value,
-                z1_ini: document.getElementById('z1i').value,
-                z2_ini: document.getElementById('z2i').value,
-                h_mol_fin: document.getElementById('hmf').value,
-                h_prod_fin: document.getElementById('hpf').value,
-                z1_fin: document.getElementById('z1f').value,
-                z2_fin: document.getElementById('z2f').value,
-                tareas: filas.map(tr => ({
-                    p: tr.querySelector('.p').value,
-                    a: tr.querySelector('.a').value,
-                    t: tr.cells[2].querySelector('select').value,
-                    ac: tr.cells[3].querySelector('select').value,
-                    o: tr.querySelector('.obs').value
-                }))
+                fecha: new Date().toLocaleDateString(), turno: document.getElementById('f_turno').value,
+                operario: document.getElementById('user-tag').innerText.replace("OPERARIO: ",""), lote: document.getElementById('f_lote').value,
+                h_mol_ini: document.getElementById('hmi').value, h_prod_ini: 0, z1_ini: document.getElementById('z1i').value, z2_ini: 0,
+                h_mol_fin: document.getElementById('hmf').value, h_prod_fin: 0, z1_fin: document.getElementById('z1f').value, z2_fin: 0,
+                tareas: filas.map(tr => ({ p: tr.querySelector('.p').value, a: tr.querySelector('.a').value, t: tr.cells[2].querySelector('select').value, ac: tr.cells[3].querySelector('select').value, o: tr.querySelector('.obs').value }))
             };
-
             await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
-            alert("Parte guardado en el Excel correctamente.");
-            window.location.reload();
+            alert("Enviado."); window.location.reload();
         }
     </script>
 </body>
