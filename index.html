@@ -2,16 +2,16 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Tradebe Molino v8.0</title>
+    <title>Tradebe Molino v8.6</title>
     <style>
         :root { 
             --blue: #0056b3; --green: #89b434; --orange: #e87e04; 
             --light: #f8f9fa; --dark: #2c3e50; --border: #dee2e6;
             --white: #ffffff; --shadow: rgba(0,0,0,0.08);
+            --red: #dc3545;
         }
         body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--light); margin: 0; padding: 0; color: var(--dark); }
         
-        /* Navegación y Estructura */
         .page-section { display: none; }
         .page-section.active { display: block; }
         .header { 
@@ -21,7 +21,6 @@
         }
         .container { padding: 20px; max-width: 1100px; margin: auto; }
         
-        /* Cards y Secciones */
         .card { 
             background: var(--white); padding: 25px; border-radius: 12px; 
             border: 1px solid var(--border); margin-bottom: 25px; 
@@ -33,7 +32,6 @@
             margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;
         }
 
-        /* Inputs Mejorados */
         input, select { 
             padding: 10px; border: 1px solid #ced4da; border-radius: 6px;
             transition: border-color 0.2s; font-size: 0.95em;
@@ -41,7 +39,6 @@
         input:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgba(0,86,179,0.1); }
         .full-w { width: 100%; box-sizing: border-box; }
 
-        /* Contadores con Estilo */
         .counters-grid { 
             display: grid; grid-template-columns: 1fr 1fr; gap: 20px; 
             background: #f1f4f8; padding: 20px; border-radius: 10px; margin-bottom: 20px;
@@ -53,26 +50,21 @@
         }
         .input-group label { font-size: 0.85em; font-weight: 600; color: #64748b; }
         .input-group input { width: 100px; border: none; text-align: right; font-weight: bold; color: var(--blue); font-size: 1.1em; }
-        .input-group input:focus { box-shadow: none; }
 
-        /* Tabla de Tareas */
         .table-container { overflow-x: auto; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; min-width: 600px; }
         th { background: #f8f9fa; color: #475569; padding: 12px; font-size: 0.8em; text-transform: uppercase; border-bottom: 2px solid var(--border); }
         td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
         
-        /* Botones */
         .btn { 
             padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; 
             font-weight: bold; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
         }
         .btn-blue { background: var(--blue); color: white; }
-        .btn-blue:hover { background: #004494; transform: translateY(-1px); }
         .btn-green { background: var(--green); color: white; }
         .btn-add { background: #e2e8f0; color: var(--dark); margin-top: 10px; font-size: 0.85em; }
-        .btn-add:hover { background: #cbd5e1; }
+        .btn-del { background: #fee2e2; color: var(--red); padding: 5px 10px; font-size: 0.8em; border-radius: 4px; border: none; cursor: pointer;}
 
-        /* Login */
         #login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--dark); }
         .login-card { background: white; padding: 40px; border-radius: 20px; width: 340px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
     </style>
@@ -86,7 +78,7 @@
             <input type="text" id="u" placeholder="Usuario" class="full-w" style="margin-bottom:12px">
             <input type="password" id="p" placeholder="Contraseña" class="full-w" style="margin-bottom:25px">
             <button class="btn btn-blue full-w" id="btnLogin" onclick="login()">ENTRAR AL SISTEMA</button>
-            <div id="load-msg" style="color:var(--orange); font-size:0.85em; margin-top:15px; display:none; font-weight:bold; animation: pulse 1.5s infinite;">⌛ CONECTANDO CON EXCEL...</div>
+            <div id="load-msg" style="color:var(--orange); font-size:0.85em; margin-top:15px; display:none; font-weight:bold;">⌛ CONECTANDO CON EXCEL...</div>
         </div>
     </div>
 
@@ -100,8 +92,8 @@
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzVOf-ZAbxKcSeLahTA5G4xYLtBhonYSMQdM39W_bB-LcGs6qmuJ2rt8Hc1j0RQlgTf/exec";
-        let activos = [], tareas = [], excelCreds = {}, reporteActual = [];
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw60m5TvtIrKGiSFEhFcTdWnm8nc4T6W7W3I4yGykhPxFNONqIedOmQxir4E8_-QwdL/exec";
+        let activos = [], tareas = [], recambios = [], excelCreds = {}, reporteActual = [];
 
         function logout() {
             document.getElementById('app').classList.remove('active');
@@ -121,7 +113,10 @@
             try {
                 const response = await fetch(SCRIPT_URL);
                 const data = await response.json();
-                activos = data.activos; tareas = data.tareas; excelCreds = data.credenciales;
+                activos = data.activos; 
+                tareas = data.tareas; 
+                recambios = data.recambios || []; 
+                excelCreds = data.credenciales;
 
                 if ((user === 'admin' && pass === '1234') || (excelCreds[user] && excelCreds[user].toString() === pass)) {
                     document.getElementById('login-page').classList.remove('active');
@@ -168,12 +163,22 @@
                         </table>
                     </div>
                     <button onclick="addFila()" class="btn btn-add">+ Añadir nueva línea</button>
+
+                    <div class="section-title" style="margin-top:30px">Recambios Gastados</div>
+                    <div class="table-container">
+                        <table id="t-recambios">
+                            <thead><tr><th width="60%">Recambio / Material</th><th width="30%">Cantidad</th><th width="10%"></th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <button onclick="addRecambio()" class="btn btn-add">+ Añadir recambio</button>
                     
                     <div style="margin-top:40px; border-top: 1px solid #eee; padding-top:20px;">
                         <button id="btnSend" class="btn btn-blue full-w" style="height:55px; font-size:1.1em;" onclick="enviar()">ENVIAR PARTE DE TRABAJO</button>
                     </div>
                 </div>`;
             addFila();
+            addRecambio();
         }
 
         function addFila() {
@@ -185,6 +190,14 @@
                 <td><select class="full-w">${tareas.map(t=>`<option>${t}</option>`).join('')}</select></td>
                 <td><select class="full-w">${activos.map(a=>`<option>${a}</option>`).join('')}</select></td>
                 <td><input type="text" class="obs full-w" placeholder="..."></td>`;
+        }
+
+        function addRecambio() {
+            const r = document.querySelector('#t-recambios tbody').insertRow();
+            r.innerHTML = `
+                <td><select class="r-item full-w"><option value="">-- Seleccionar --</option>${recambios.map(item=>`<option>${item}</option>`).join('')}</select></td>
+                <td><input type="number" class="r-cant full-w" placeholder="0"></td>
+                <td style="text-align:center"><button class="btn-del" onclick="this.parentElement.parentElement.remove()">✕</button></td>`;
         }
 
         function genH() {
@@ -204,14 +217,18 @@
 
         async function enviar() {
             const filas = Array.from(document.querySelectorAll('#t-tareas tbody tr'));
+            const filasR = Array.from(document.querySelectorAll('#t-recambios tbody tr'));
+            
             for (let tr of filas) {
                 const p = tr.querySelector('.p').value, a = tr.querySelector('.a').value;
-                if (p && a && a <= p) { alert("¡Atención! La hora de arranque no puede ser anterior o igual a la de parada."); return; }
+                if (p && a && a <= p) { alert("¡Atención! La hora de arranque debe ser posterior a la de parada."); return; }
             }
-            if(!confirm("¿Seguro que quieres enviar el parte?")) return;
             
-            document.getElementById('btnSend').disabled = true;
-            document.getElementById('btnSend').innerText = "ENVIANDO...";
+            if(!confirm("¿Deseas enviar el parte de trabajo?")) return;
+            
+            const btn = document.getElementById('btnSend');
+            btn.disabled = true;
+            btn.innerText = "ENVIANDO...";
             
             const data = {
                 fecha: new Date().toLocaleDateString(), turno: document.getElementById('f_turno').value,
@@ -220,21 +237,18 @@
                 z1_ini: document.getElementById('z1i').value, z2_ini: document.getElementById('z2i').value,
                 h_mol_fin: document.getElementById('hmf').value, h_prod_fin: document.getElementById('hpf').value, 
                 z1_fin: document.getElementById('z1f').value, z2_fin: document.getElementById('z2f').value,
-                tareas: filas.map(tr => ({ p: tr.querySelector('.p').value, a: tr.querySelector('.a').value, t: tr.cells[2].querySelector('select').value, ac: tr.cells[3].querySelector('select').value, o: tr.querySelector('.obs').value }))
+                tareas: filas.map(tr => ({ p: tr.querySelector('.p').value, a: tr.querySelector('.a').value, t: tr.cells[2].querySelector('select').value, ac: tr.cells[3].querySelector('select').value, o: tr.querySelector('.obs').value })),
+                recambios: filasR.map(tr => ({ item: tr.querySelector('.r-item').value, cant: tr.querySelector('.r-cant').value })).filter(r => r.item !== "")
             };
             
-            try {
-                await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
-                alert("Parte enviado con éxito al archivo de Excel.");
+            fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', cache: 'no-cache', body: JSON.stringify(data) });
+
+            setTimeout(() => {
+                alert("Parte y recambios registrados correctamente.");
                 window.location.reload();
-            } catch (e) {
-                alert("Error al enviar. Comprueba tu conexión.");
-                document.getElementById('btnSend').disabled = false;
-                document.getElementById('btnSend').innerText = "ENVIAR PARTE DE TRABAJO";
-            }
+            }, 2500); 
         }
 
-        // --- FUNCIONES ADMIN (MANTENIDAS) ---
         function renderAdmin() {
             document.getElementById('user-tag').innerText = "⚙️ ADMINISTRADOR";
             document.getElementById('view').innerHTML = `
@@ -287,7 +301,7 @@
                     out.innerHTML = html + "</tbody></table>";
                     document.getElementById('btnDownload').style.display = "inline-block";
                 } else { out.innerHTML = "Sin resultados."; }
-            } catch (e) { out.innerHTML = "Error."; }
+            } catch (e) { out.innerHTML = "Error de red."; }
         }
 
         function descargarCSV() {
