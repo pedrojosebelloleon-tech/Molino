@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Tradebe Molino v8.6</title>
+    <title>Tradebe Molino v8.8</title>
     <style>
         :root { 
             --blue: #0056b3; --green: #89b434; --orange: #e87e04; 
@@ -38,6 +38,15 @@
         }
         input:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgba(0,86,179,0.1); }
         .full-w { width: 100%; box-sizing: border-box; }
+
+        .tabs-nav { display: flex; gap: 5px; margin-bottom: -1px; }
+        .tab-btn { 
+            padding: 12px 25px; background: #e2e8f0; border: 1px solid var(--border); 
+            border-bottom: none; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: bold; color: #64748b;
+        }
+        .tab-btn.active { background: var(--white); color: var(--blue); border-top: 3px solid var(--blue); padding-bottom: 13px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
         .counters-grid { 
             display: grid; grid-template-columns: 1fr 1fr; gap: 20px; 
@@ -78,7 +87,7 @@
             <input type="text" id="u" placeholder="Usuario" class="full-w" style="margin-bottom:12px">
             <input type="password" id="p" placeholder="Contraseña" class="full-w" style="margin-bottom:25px">
             <button class="btn btn-blue full-w" id="btnLogin" onclick="login()">ENTRAR AL SISTEMA</button>
-            <div id="load-msg" style="color:var(--orange); font-size:0.85em; margin-top:15px; display:none; font-weight:bold;">⌛ CONECTANDO CON EXCEL...</div>
+            <div id="load-msg" style="color:var(--orange); font-size:0.85em; margin-top:15px; display:none; font-weight:bold;">⌛ CONECTANDO...</div>
         </div>
     </div>
 
@@ -126,15 +135,37 @@
             } catch (e) { alert("Error de red"); logout(); }
         }
 
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
         function renderOperario(name) {
             document.getElementById('user-tag').innerText = "👤 " + name.toUpperCase();
             document.getElementById('view').innerHTML = `
-                <div class="card">
-                    <div class="section-title">Información General</div>
-                    <div style="display:flex; gap:15px; margin-bottom:25px;">
-                        <div style="flex:1"><label style="font-size:0.8em; font-weight:bold; color:#64748b;">Nº LOTE</label><br><input type="text" id="f_lote" class="full-w" placeholder="Ej: 2024-001"></div>
-                        <div style="flex:1"><label style="font-size:0.8em; font-weight:bold; color:#64748b;">TURNO</label><br><select id="f_turno" class="full-w" onchange="resetHoras()"><option>Mañana</option><option>Tarde</option></select></div>
-                        <div style="flex:1"><label style="font-size:0.8em; font-weight:bold; color:#64748b;">FECHA</label><br><input type="text" value="${new Date().toLocaleDateString()}" readonly style="width:100%; background:#f8fafc; color:#94a3b8; border-color:#e2e8f0;"></div>
+                <div class="card" style="padding:15px 25px; margin-bottom:15px;">
+                    <div style="display:flex; gap:20px; align-items:center;">
+                        <div style="flex:1"><label style="font-size:0.75em; font-weight:bold; color:#64748b;">TURNO ACTUAL</label><br>
+                            <select id="f_turno" class="full-w" onchange="resetHoras()" style="padding:5px; margin-top:5px;"><option>Mañana</option><option>Tarde</option></select>
+                        </div>
+                        <div style="flex:1"><label style="font-size:0.75em; font-weight:bold; color:#64748b;">FECHA</label><br>
+                            <div style="margin-top:8px; font-weight:bold; color:var(--dark);">${new Date().toLocaleDateString()}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tabs-nav">
+                    <button class="tab-btn active" onclick="switchTab('tab-parte')">PARTE DE TRABAJO</button>
+                    <button class="tab-btn" onclick="switchTab('tab-recambios-div')">RECAMBIOS GASTADOS</button>
+                </div>
+
+                <div id="tab-parte" class="tab-content active card">
+                    <div class="section-title">Información del Lote</div>
+                    <div style="margin-bottom:25px;">
+                        <label style="font-size:0.8em; font-weight:bold; color:#64748b;">Nº LOTE / ORDEN</label><br>
+                        <input type="text" id="f_lote" class="full-w" placeholder="Ej: 2026-MOL-001" style="margin-top:5px; border-color:var(--orange);">
                     </div>
 
                     <div class="section-title">Lectura de Contadores</div>
@@ -163,8 +194,14 @@
                         </table>
                     </div>
                     <button onclick="addFila()" class="btn btn-add">+ Añadir nueva línea</button>
+                    <div style="margin-top:30px">
+                        <button id="btnSendParte" class="btn btn-blue full-w" style="height:55px;" onclick="enviar('parte')">ENVIAR PARTE DE TRABAJO</button>
+                    </div>
+                </div>
 
-                    <div class="section-title" style="margin-top:30px">Recambios Gastados</div>
+                <div id="tab-recambios-div" class="tab-content card">
+                    <div class="section-title">Consumo de Materiales</div>
+                    <p style="font-size:0.85em; color:#64748b; margin-top:-10px; margin-bottom:20px;">Registra aquí los repuestos utilizados durante el turno sin necesidad de vincularlos a un lote específico.</p>
                     <div class="table-container">
                         <table id="t-recambios">
                             <thead><tr><th width="60%">Recambio / Material</th><th width="30%">Cantidad</th><th width="10%"></th></tr></thead>
@@ -172,9 +209,8 @@
                         </table>
                     </div>
                     <button onclick="addRecambio()" class="btn btn-add">+ Añadir recambio</button>
-                    
-                    <div style="margin-top:40px; border-top: 1px solid #eee; padding-top:20px;">
-                        <button id="btnSend" class="btn btn-blue full-w" style="height:55px; font-size:1.1em;" onclick="enviar()">ENVIAR PARTE DE TRABAJO</button>
+                    <div style="margin-top:30px">
+                        <button id="btnSendRec" class="btn btn-green full-w" style="height:55px;" onclick="enviar('recambios')">REGISTRAR CONSUMO DE RECAMBIOS</button>
                     </div>
                 </div>`;
             addFila();
@@ -215,40 +251,69 @@
 
         function resetHoras() { document.querySelectorAll('#t-tareas select.p, #t-tareas select.a').forEach(s => s.innerHTML = genH()); }
 
-        async function enviar() {
-            const filas = Array.from(document.querySelectorAll('#t-tareas tbody tr'));
-            const filasR = Array.from(document.querySelectorAll('#t-recambios tbody tr'));
-            
-            for (let tr of filas) {
-                const p = tr.querySelector('.p').value, a = tr.querySelector('.a').value;
-                if (p && a && a <= p) { alert("¡Atención! La hora de arranque debe ser posterior a la de parada."); return; }
+        async function enviar(tipo) {
+            let data = {
+                fecha: new Date().toLocaleDateString(), 
+                turno: document.getElementById('f_turno').value,
+                operario: document.getElementById('user-tag').innerText.replace("👤 ",""),
+                tareas: [],
+                recambios: []
+            };
+
+            const btn = tipo === 'parte' ? document.getElementById('btnSendParte') : document.getElementById('btnSendRec');
+
+            if (tipo === 'parte') {
+                const lote = document.getElementById('f_lote').value;
+                if(!lote) { alert("¡Error! Debes indicar el Nº de Lote para el parte."); return; }
+                
+                const filas = Array.from(document.querySelectorAll('#t-tareas tbody tr'));
+                for (let tr of filas) {
+                    const p = tr.querySelector('.p').value, a = tr.querySelector('.a').value;
+                    if (p && a && a <= p) { alert("¡Atención! La hora de arranque debe ser posterior a la de parada."); return; }
+                }
+                
+                data.lote = lote;
+                data.h_mol_ini = document.getElementById('hmi').value;
+                data.h_prod_ini = document.getElementById('hpi').value;
+                data.z1_ini = document.getElementById('z1i').value;
+                data.z2_ini = document.getElementById('z2i').value;
+                data.h_mol_fin = document.getElementById('hmf').value;
+                data.h_prod_fin = document.getElementById('hpf').value;
+                data.z1_fin = document.getElementById('z1f').value;
+                data.z2_fin = document.getElementById('z2f').value;
+                data.tareas = filas.map(tr => ({ 
+                    p: tr.querySelector('.p').value, 
+                    a: tr.querySelector('.a').value, 
+                    t: tr.cells[2].querySelector('select').value, 
+                    ac: tr.cells[3].querySelector('select').value, 
+                    o: tr.querySelector('.obs').value 
+                })).filter(t => t.p !== "");
+            } else {
+                // En recambios, el lote se envía vacío o como "N/A"
+                data.lote = "RECAMBIO-LIBRE";
+                const filasR = Array.from(document.querySelectorAll('#t-recambios tbody tr'));
+                data.recambios = filasR.map(tr => ({ 
+                    item: tr.querySelector('.r-item').value, 
+                    cant: tr.querySelector('.r-cant').value 
+                })).filter(r => r.item !== "");
+                
+                if(data.recambios.length === 0) { alert("Añade al menos un recambio."); return; }
             }
             
-            if(!confirm("¿Deseas enviar el parte de trabajo?")) return;
+            if(!confirm(`¿Deseas enviar los datos de ${tipo}?`)) return;
             
-            const btn = document.getElementById('btnSend');
             btn.disabled = true;
             btn.innerText = "ENVIANDO...";
-            
-            const data = {
-                fecha: new Date().toLocaleDateString(), turno: document.getElementById('f_turno').value,
-                operario: document.getElementById('user-tag').innerText.replace("👤 ",""), lote: document.getElementById('f_lote').value,
-                h_mol_ini: document.getElementById('hmi').value, h_prod_ini: document.getElementById('hpi').value, 
-                z1_ini: document.getElementById('z1i').value, z2_ini: document.getElementById('z2i').value,
-                h_mol_fin: document.getElementById('hmf').value, h_prod_fin: document.getElementById('hpf').value, 
-                z1_fin: document.getElementById('z1f').value, z2_fin: document.getElementById('z2f').value,
-                tareas: filas.map(tr => ({ p: tr.querySelector('.p').value, a: tr.querySelector('.a').value, t: tr.cells[2].querySelector('select').value, ac: tr.cells[3].querySelector('select').value, o: tr.querySelector('.obs').value })),
-                recambios: filasR.map(tr => ({ item: tr.querySelector('.r-item').value, cant: tr.querySelector('.r-cant').value })).filter(r => r.item !== "")
-            };
             
             fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', cache: 'no-cache', body: JSON.stringify(data) });
 
             setTimeout(() => {
-                alert("Parte y recambios registrados correctamente.");
+                alert("Operación completada correctamente.");
                 window.location.reload();
-            }, 2500); 
+            }, 2000); 
         }
 
+        // Resto de funciones (Admin, Reporte) se mantienen igual...
         function renderAdmin() {
             document.getElementById('user-tag').innerText = "⚙️ ADMINISTRADOR";
             document.getElementById('view').innerHTML = `
