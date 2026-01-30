@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Tradebe Molino v8.8</title>
+    <title>Tradebe Molino v9.1</title>
     <style>
         :root { 
             --blue: #0056b3; --green: #89b434; --orange: #e87e04; 
@@ -39,10 +39,11 @@
         input:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgba(0,86,179,0.1); }
         .full-w { width: 100%; box-sizing: border-box; }
 
-        .tabs-nav { display: flex; gap: 5px; margin-bottom: -1px; }
+        .tabs-nav { display: flex; gap: 5px; margin-bottom: -1px; overflow-x: auto; }
         .tab-btn { 
             padding: 12px 25px; background: #e2e8f0; border: 1px solid var(--border); 
             border-bottom: none; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: bold; color: #64748b;
+            flex-shrink: 0;
         }
         .tab-btn.active { background: var(--white); color: var(--blue); border-top: 3px solid var(--blue); padding-bottom: 13px; }
         .tab-content { display: none; }
@@ -63,7 +64,7 @@
         .table-container { overflow-x: auto; margin-top: 10px; }
         table { width: 100%; border-collapse: collapse; min-width: 600px; }
         th { background: #f8f9fa; color: #475569; padding: 12px; font-size: 0.8em; text-transform: uppercase; border-bottom: 2px solid var(--border); }
-        td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
         
         .btn { 
             padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; 
@@ -73,6 +74,9 @@
         .btn-green { background: var(--green); color: white; }
         .btn-add { background: #e2e8f0; color: var(--dark); margin-top: 10px; font-size: 0.85em; }
         .btn-del { background: #fee2e2; color: var(--red); padding: 5px 10px; font-size: 0.8em; border-radius: 4px; border: none; cursor: pointer;}
+
+        .pos-container { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+        .pos-input { width: 50px !important; padding: 5px !important; font-size: 0.8em !important; text-align: center; border: 1px solid var(--orange) !important; }
 
         #login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--dark); }
         .login-card { background: white; padding: 40px; border-radius: 20px; width: 340px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
@@ -93,7 +97,7 @@
 
     <div id="app" class="page-section">
         <div class="header">
-            <div><span style="color:var(--orange); font-weight:900;">TRADE</span><span style="color:var(--green); font-weight:900;">BE</span> <small style="color:#999; margin-left:10px;">| MOLINO</small></div>
+            <div><span style="color:var(--orange); font-weight:900;">TRADE</span><span style="color:var(--green); font-weight:900;">BE</span> <small style="color:#999; margin-left:10px;">| MOLINO v9.1</small></div>
             <div id="user-tag" style="font-size:0.85em; font-weight:bold; background:#edf2f7; padding:5px 12px; border-radius:20px;"></div>
             <button onclick="logout()" style="background:none; border:1px solid #e2e8f0; padding:6px 12px; cursor:pointer; border-radius:6px; font-size:0.8em; font-weight:bold; color:#666;">Cerrar Sesión</button>
         </div>
@@ -101,16 +105,8 @@
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw60m5TvtIrKGiSFEhFcTdWnm8nc4T6W7W3I4yGykhPxFNONqIedOmQxir4E8_-QwdL/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyH1vazVk3mn0XdCm0qatppXca3vnvJ1U8R7C8OBwHGBKbSZAWV-BCe0CQ3-tE76kUp/exec"; // REEMPLAZAR CON TU URL
         let activos = [], tareas = [], recambios = [], excelCreds = {}, reporteActual = [];
-
-        function logout() {
-            document.getElementById('app').classList.remove('active');
-            document.getElementById('login-page').classList.add('active');
-            document.getElementById('u').value = ""; document.getElementById('p').value = "";
-            document.getElementById('btnLogin').disabled = false;
-            document.getElementById('load-msg').style.display = "none";
-        }
 
         async function login() {
             const user = document.getElementById('u').value.toLowerCase().trim();
@@ -118,21 +114,20 @@
             if(!user || !pass) return;
             document.getElementById('btnLogin').disabled = true;
             document.getElementById('load-msg').style.display = "block";
-
             try {
                 const response = await fetch(SCRIPT_URL);
                 const data = await response.json();
-                activos = data.activos; 
-                tareas = data.tareas; 
-                recambios = data.recambios || []; 
-                excelCreds = data.credenciales;
-
+                activos = data.activos; tareas = data.tareas; recambios = data.recambios || []; excelCreds = data.credenciales;
                 if ((user === 'admin' && pass === '1234') || (excelCreds[user] && excelCreds[user].toString() === pass)) {
                     document.getElementById('login-page').classList.remove('active');
                     document.getElementById('app').classList.add('active');
                     if (user === 'admin') renderAdmin(); else renderOperario(user);
-                } else { alert("Credenciales incorrectas"); logout(); }
-            } catch (e) { alert("Error de red"); logout(); }
+                } else { alert("Credenciales incorrectas"); document.getElementById('btnLogin').disabled = false; }
+            } catch (e) { alert("Error de red"); document.getElementById('btnLogin').disabled = false; }
+        }
+
+        function logout() {
+            location.reload();
         }
 
         function switchTab(tabId) {
@@ -143,78 +138,68 @@
         }
 
         function renderOperario(name) {
+            const todayISO = new Date().toISOString().split('T')[0];
             document.getElementById('user-tag').innerText = "👤 " + name.toUpperCase();
             document.getElementById('view').innerHTML = `
                 <div class="card" style="padding:15px 25px; margin-bottom:15px;">
-                    <div style="display:flex; gap:20px; align-items:center;">
-                        <div style="flex:1"><label style="font-size:0.75em; font-weight:bold; color:#64748b;">TURNO ACTUAL</label><br>
-                            <select id="f_turno" class="full-w" onchange="resetHoras()" style="padding:5px; margin-top:5px;"><option>Mañana</option><option>Tarde</option></select>
+                    <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:120px;">
+                            <label style="font-size:0.75em; font-weight:bold; color:#64748b;">TURNO</label><br>
+                            <select id="f_turno" class="full-w" onchange="resetHoras()"><option>Mañana</option><option>Tarde</option></select>
                         </div>
-                        <div style="flex:1"><label style="font-size:0.75em; font-weight:bold; color:#64748b;">FECHA</label><br>
-                            <div style="margin-top:8px; font-weight:bold; color:var(--dark);">${new Date().toLocaleDateString()}</div>
+                        <div style="flex:1; min-width:120px;">
+                            <label style="font-size:0.75em; font-weight:bold; color:#64748b;">FECHA DE REGISTRO</label><br>
+                            <input type="date" id="f_fecha" class="full-w" value="${todayISO}">
                         </div>
                     </div>
                 </div>
 
                 <div class="tabs-nav">
                     <button class="tab-btn active" onclick="switchTab('tab-parte')">PARTE DE TRABAJO</button>
-                    <button class="tab-btn" onclick="switchTab('tab-recambios-div')">RECAMBIOS GASTADOS</button>
+                    <button class="tab-btn" onclick="switchTab('tab-incidencias')">INCIDENCIAS</button>
+                    <button class="tab-btn" onclick="switchTab('tab-recambios-div')">RECAMBIOS</button>
                 </div>
 
                 <div id="tab-parte" class="tab-content active card">
-                    <div class="section-title">Información del Lote</div>
-                    <div style="margin-bottom:25px;">
-                        <label style="font-size:0.8em; font-weight:bold; color:#64748b;">Nº LOTE / ORDEN</label><br>
-                        <input type="text" id="f_lote" class="full-w" placeholder="Ej: 2026-MOL-001" style="margin-top:5px; border-color:var(--orange);">
-                    </div>
-
                     <div class="section-title">Lectura de Contadores</div>
+                    <div style="margin-bottom: 20px;"><input type="text" id="f_lote" class="full-w" placeholder="Nº LOTE / ORDEN"></div>
                     <div class="counters-grid">
                         <div class="counter-col">
-                            <div style="font-size:0.7em; font-weight:bold; color:gray; margin-bottom:5px;">VALORES INICIALES</div>
-                            <div class="input-group"><label>H. Molino</label><input type="number" step="0.01" id="hmi" placeholder="0.00"></div>
-                            <div class="input-group"><label>H. Producción</label><input type="number" step="0.01" id="hpi" placeholder="0.00"></div>
-                            <div class="input-group"><label>Z1 (kg)</label><input type="number" step="0.001" id="z1i" placeholder="0.000"></div>
-                            <div class="input-group"><label>Z2 (un.)</label><input type="number" id="z2i" placeholder="0"></div>
+                            <div class="input-group"><label>H. Molino I</label><input type="number" step="0.01" id="hmi"></div>
+                            <div class="input-group"><label>H. Prod I</label><input type="number" step="0.01" id="hpi"></div>
+                            <div class="input-group"><label>Z1 (kg) I</label><input type="number" step="0.001" id="z1i"></div>
+                            <div class="input-group"><label>Z2 (un.) I</label><input type="number" id="z2i"></div>
                         </div>
                         <div class="counter-col">
-                            <div style="font-size:0.7em; font-weight:bold; color:gray; margin-bottom:5px;">VALORES FINALES</div>
-                            <div class="input-group"><label>H. Molino</label><input type="number" step="0.01" id="hmf" placeholder="0.00"></div>
-                            <div class="input-group"><label>H. Producción</label><input type="number" step="0.01" id="hpf" placeholder="0.00"></div>
-                            <div class="input-group"><label>Z1 (kg)</label><input type="number" step="0.001" id="z1f" placeholder="0.000"></div>
-                            <div class="input-group"><label>Z2 (un.)</label><input type="number" id="z2f" placeholder="0"></div>
+                            <div class="input-group"><label>H. Molino F</label><input type="number" step="0.01" id="hmf"></div>
+                            <div class="input-group"><label>H. Prod F</label><input type="number" step="0.01" id="hpf"></div>
+                            <div class="input-group"><label>Z1 (kg) F</label><input type="number" step="0.001" id="z1f"></div>
+                            <div class="input-group"><label>Z2 (un.) F</label><input type="number" id="z2f"></div>
                         </div>
                     </div>
+                    <button id="btnSendParte" class="btn btn-blue full-w" onclick="enviar('parte')">ENVIAR LECTURAS</button>
+                </div>
 
+                <div id="tab-incidencias" class="tab-content card">
                     <div class="section-title">Registro de Tareas</div>
-                    <div class="table-container">
-                        <table id="t-tareas">
-                            <thead><tr><th>Parada</th><th>Arranque</th><th width="25%">Tarea</th><th width="25%">Activo</th><th>Observaciones</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                    <button onclick="addFila()" class="btn btn-add">+ Añadir nueva línea</button>
-                    <div style="margin-top:30px">
-                        <button id="btnSendParte" class="btn btn-blue full-w" style="height:55px;" onclick="enviar('parte')">ENVIAR PARTE DE TRABAJO</button>
-                    </div>
+                    <table id="t-tareas">
+                        <thead><tr><th>Parada</th><th>Arranque</th><th>Tarea</th><th>Activo</th><th>Obs</th><th></th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <button onclick="addFila()" class="btn btn-add">+ Línea</button>
+                    <button id="btnSendInc" class="btn btn-blue full-w" style="margin-top:20px; background:var(--orange)" onclick="enviar('incidencias')">ENVIAR TAREAS</button>
                 </div>
 
                 <div id="tab-recambios-div" class="tab-content card">
                     <div class="section-title">Consumo de Materiales</div>
-                    <p style="font-size:0.85em; color:#64748b; margin-top:-10px; margin-bottom:20px;">Registra aquí los repuestos utilizados durante el turno sin necesidad de vincularlos a un lote específico.</p>
-                    <div class="table-container">
-                        <table id="t-recambios">
-                            <thead><tr><th width="60%">Recambio / Material</th><th width="30%">Cantidad</th><th width="10%"></th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                    <button onclick="addRecambio()" class="btn btn-add">+ Añadir recambio</button>
-                    <div style="margin-top:30px">
-                        <button id="btnSendRec" class="btn btn-green full-w" style="height:55px;" onclick="enviar('recambios')">REGISTRAR CONSUMO DE RECAMBIOS</button>
-                    </div>
+                    <table id="t-recambios">
+                        <thead><tr><th width="50%">Recambio</th><th width="40%">Cant. / Posiciones</th><th width="10%"></th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                    <button onclick="addRecambio()" class="btn btn-add">+ Añadir Recambio</button>
+                    <button id="btnSendRec" class="btn btn-green full-w" style="margin-top:20px;" onclick="enviar('recambios')">REGISTRAR RECAMBIOS</button>
                 </div>`;
-            addFila();
-            addRecambio();
+            addFila(); addRecambio();
         }
 
         function addFila() {
@@ -225,15 +210,42 @@
                 <td><select class="a full-w">${h}</select></td>
                 <td><select class="full-w">${tareas.map(t=>`<option>${t}</option>`).join('')}</select></td>
                 <td><select class="full-w">${activos.map(a=>`<option>${a}</option>`).join('')}</select></td>
-                <td><input type="text" class="obs full-w" placeholder="..."></td>`;
+                <td><input type="text" class="obs full-w"></td>
+                <td><button class="btn-del" onclick="this.parentElement.parentElement.remove()">✕</button></td>`;
         }
 
         function addRecambio() {
             const r = document.querySelector('#t-recambios tbody').insertRow();
             r.innerHTML = `
-                <td><select class="r-item full-w"><option value="">-- Seleccionar --</option>${recambios.map(item=>`<option>${item}</option>`).join('')}</select></td>
-                <td><input type="number" class="r-cant full-w" placeholder="0"></td>
-                <td style="text-align:center"><button class="btn-del" onclick="this.parentElement.parentElement.remove()">✕</button></td>`;
+                <td><select class="r-item full-w" onchange="handleRecambioChange(this)"><option value="">-- Seleccionar --</option>${recambios.map(item=>`<option>${item}</option>`).join('')}</select></td>
+                <td>
+                    <input type="number" class="r-cant full-w" placeholder="Cant" oninput="handleCantChange(this)">
+                    <div class="pos-container"></div>
+                </td>
+                <td><button class="btn-del" onclick="this.parentElement.parentElement.remove()">✕</button></td>`;
+        }
+
+        function handleRecambioChange(sel) {
+            const cantInput = sel.parentElement.nextElementSibling.querySelector('.r-cant');
+            handleCantChange(cantInput);
+        }
+
+        function handleCantChange(input) {
+            const row = input.closest('tr');
+            const item = row.querySelector('.r-item').value.toLowerCase();
+            const container = row.querySelector('.pos-container');
+            const cant = parseInt(input.value) || 0;
+            container.innerHTML = "";
+            
+            if ((item.includes("placa") || item.includes("martillo")) && cant > 0) {
+                for (let i = 0; i < cant; i++) {
+                    const inp = document.createElement('input');
+                    inp.type = "number";
+                    inp.className = "pos-input";
+                    inp.placeholder = "Pos";
+                    container.appendChild(inp);
+                }
+            }
         }
 
         function genH() {
@@ -249,30 +261,26 @@
             return html;
         }
 
-        function resetHoras() { document.querySelectorAll('#t-tareas select.p, #t-tareas select.a').forEach(s => s.innerHTML = genH()); }
+        function resetHoras() { 
+            document.querySelectorAll('#t-tareas select.p, #t-tareas select.a').forEach(s => s.innerHTML = genH()); 
+        }
 
         async function enviar(tipo) {
+            const btn = event.target;
+            const originalText = btn.innerText;
+            const rawFecha = document.getElementById('f_fecha').value;
+            const [y, m, d] = rawFecha.split('-');
+            const fechaFormateada = `${d}/${m}/${y}`;
+
             let data = {
-                fecha: new Date().toLocaleDateString(), 
+                fecha: fechaFormateada,
                 turno: document.getElementById('f_turno').value,
                 operario: document.getElementById('user-tag').innerText.replace("👤 ",""),
-                tareas: [],
-                recambios: []
+                tipo: tipo,
+                lote: document.getElementById('f_lote')?.value || "N/A"
             };
 
-            const btn = tipo === 'parte' ? document.getElementById('btnSendParte') : document.getElementById('btnSendRec');
-
             if (tipo === 'parte') {
-                const lote = document.getElementById('f_lote').value;
-                if(!lote) { alert("¡Error! Debes indicar el Nº de Lote para el parte."); return; }
-                
-                const filas = Array.from(document.querySelectorAll('#t-tareas tbody tr'));
-                for (let tr of filas) {
-                    const p = tr.querySelector('.p').value, a = tr.querySelector('.a').value;
-                    if (p && a && a <= p) { alert("¡Atención! La hora de arranque debe ser posterior a la de parada."); return; }
-                }
-                
-                data.lote = lote;
                 data.h_mol_ini = document.getElementById('hmi').value;
                 data.h_prod_ini = document.getElementById('hpi').value;
                 data.z1_ini = document.getElementById('z1i').value;
@@ -281,117 +289,51 @@
                 data.h_prod_fin = document.getElementById('hpf').value;
                 data.z1_fin = document.getElementById('z1f').value;
                 data.z2_fin = document.getElementById('z2f').value;
-                data.tareas = filas.map(tr => ({ 
-                    p: tr.querySelector('.p').value, 
-                    a: tr.querySelector('.a').value, 
-                    t: tr.cells[2].querySelector('select').value, 
-                    ac: tr.cells[3].querySelector('select').value, 
-                    o: tr.querySelector('.obs').value 
+            } else if (tipo === 'incidencias') {
+                data.tareas = Array.from(document.querySelectorAll('#t-tareas tbody tr')).map(tr => ({
+                    p: tr.querySelector('.p').value, a: tr.querySelector('.a').value,
+                    t: tr.cells[2].querySelector('select').value, ac: tr.cells[3].querySelector('select').value,
+                    o: tr.querySelector('.obs').value
                 })).filter(t => t.p !== "");
-            } else {
-                // En recambios, el lote se envía vacío o como "N/A"
-                data.lote = "RECAMBIO-LIBRE";
-                const filasR = Array.from(document.querySelectorAll('#t-recambios tbody tr'));
-                data.recambios = filasR.map(tr => ({ 
-                    item: tr.querySelector('.r-item').value, 
-                    cant: tr.querySelector('.r-cant').value 
-                })).filter(r => r.item !== "");
-                
-                if(data.recambios.length === 0) { alert("Añade al menos un recambio."); return; }
+            } else if (tipo === 'recambios') {
+                data.recambios = Array.from(document.querySelectorAll('#t-recambios tbody tr')).map(tr => {
+                    const posInputs = tr.querySelectorAll('.pos-input');
+                    const posiciones = Array.from(posInputs).map(i => i.value).filter(v => v !== "");
+                    return {
+                        item: tr.querySelector('.r-item').value,
+                        cant: tr.querySelector('.r-cant').value,
+                        posiciones: posiciones
+                    };
+                }).filter(r => r.item !== "");
             }
-            
-            if(!confirm(`¿Deseas enviar los datos de ${tipo}?`)) return;
-            
-            btn.disabled = true;
-            btn.innerText = "ENVIANDO...";
-            
-            fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', cache: 'no-cache', body: JSON.stringify(data) });
 
-            setTimeout(() => {
-                alert("Operación completada correctamente.");
-                window.location.reload();
-            }, 2000); 
+            if(!confirm("¿Enviar datos?")) return;
+            btn.disabled = true; btn.innerText = "ENVIANDO...";
+            
+            try {
+                await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
+                alert("✅ Éxito");
+                location.reload();
+            } catch (e) { alert("Error"); btn.disabled = false; btn.innerText = originalText; }
         }
 
-        // Resto de funciones (Admin, Reporte) se mantienen igual...
         function renderAdmin() {
-            document.getElementById('user-tag').innerText = "⚙️ ADMINISTRADOR";
+            document.getElementById('user-tag').innerText = "⚙️ ADMIN";
             document.getElementById('view').innerHTML = `
                 <div class="card">
                     <div class="section-title">Gestión de Maestros</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:15px">
-                        <div><label>NUEVA TAREA</label><br><input type="text" id="nT" style="width:65%"><button class="btn btn-blue" style="padding:8px" onclick="addExt('addTarea', 'nT')">+</button></div>
-                        <div><label>NUEVO ACTIVO</label><br><input type="text" id="nA" style="width:65%"><button class="btn btn-blue" style="padding:8px" onclick="addExt('addActivo', 'nA')">+</button></div>
-                        <div><label>NUEVO OPERARIO</label><br>
-                            <input type="text" id="nOp" placeholder="User" style="width:35%">
-                            <input type="text" id="pOp" placeholder="Pass" style="width:30%">
-                            <button class="btn btn-blue" style="padding:8px" onclick="addOperario()">+</button>
-                        </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+                        <div><input type="text" id="nT" placeholder="Tarea"><button onclick="addExt('addTarea', 'nT')">+</button></div>
+                        <div><input type="text" id="nA" placeholder="Activo"><button onclick="addExt('addActivo', 'nA')">+</button></div>
                     </div>
-                </div>
-                <div class="card">
-                    <div class="section-title">Histórico de Datos</div>
-                    <div style="display:flex; gap:10px; margin-bottom:20px; align-items:flex-end">
-                        <input type="date" id="f_ini"> <input type="date" id="f_fin">
-                        <button class="btn btn-blue" onclick="generarReporte()">CONSULTAR</button>
-                        <button id="btnDownload" class="btn btn-green" style="display:none" onclick="descargarCSV()">DESCARGAR EXCEL</button>
-                    </div>
-                    <div id="report-output" style="max-height:400px; overflow-y:auto; border:1px solid #eee"></div>
                 </div>`;
-        }
-
-        async function generarReporte() {
-            const out = document.getElementById('report-output');
-            const finiStr = document.getElementById('f_ini').value;
-            const ffinStr = document.getElementById('f_fin').value;
-            if (!finiStr || !ffinStr) return;
-            const fini = new Date(finiStr); fini.setHours(0,0,0,0);
-            const ffin = new Date(ffinStr); ffin.setHours(23,59,59,999);
-            out.innerHTML = "Consultando...";
-            document.getElementById('btnDownload').style.display = "none";
-            try {
-                const res = await fetch(SCRIPT_URL + "?action=getReport");
-                const dataRows = await res.json();
-                reporteActual = [];
-                let html = `<table><thead><tr><th>Fecha</th><th>Turno</th><th>Operario</th><th>Tarea</th><th>Activo</th><th>Parada</th><th>Arranque</th></tr></thead><tbody>`;
-                dataRows.forEach(row => {
-                    const p = row[0].split("/");
-                    const d = new Date(p[2], p[1]-1, p[0]);
-                    if (d >= fini && d <= ffin) {
-                        html += `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[14]}</td><td>${row[15]}</td><td>${row[12]}</td><td>${row[13]}</td></tr>`;
-                        reporteActual.push(row);
-                    }
-                });
-                if(reporteActual.length > 0) {
-                    out.innerHTML = html + "</tbody></table>";
-                    document.getElementById('btnDownload').style.display = "inline-block";
-                } else { out.innerHTML = "Sin resultados."; }
-            } catch (e) { out.innerHTML = "Error de red."; }
-        }
-
-        function descargarCSV() {
-            let csv = "sep=,\nFecha,Turno,Operario,Lote,H_Mol_I,H_Prod_I,Z1_I,Z2_I,H_Mol_F,H_Prod_F,Z1_F,Z2_F,Parada,Arranque,Tarea,Activo,Obs\n";
-            reporteActual.forEach(row => { csv += row.map(c => `"${c}"`).join(",") + "\n"; });
-            const blob = new Blob(["\ufeff", csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `Reporte_Tradebe.csv`;
-            link.click();
         }
 
         async function addExt(acc, inp) {
             const val = document.getElementById(inp).value;
             if(!val) return;
             fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: acc, valor: val }) });
-            alert("Grabado correctamente."); document.getElementById(inp).value = "";
-        }
-
-        async function addOperario() {
-            const nombre = document.getElementById('nOp').value.toLowerCase().trim();
-            const pass = document.getElementById('pOp').value;
-            if(!nombre || !pass) return;
-            fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: 'addOperario', nombre, pass }) });
-            alert("Operario creado."); document.getElementById('nOp').value = ""; document.getElementById('pOp').value = "";
+            alert("Grabado."); document.getElementById(inp).value = "";
         }
     </script>
 </body>
