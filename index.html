@@ -105,7 +105,7 @@
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyH1vazVk3mn0XdCm0qatppXca3vnvJ1U8R7C8OBwHGBKbSZAWV-BCe0CQ3-tE76kUp/exec"; // REEMPLAZAR CON TU URL
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxqgA6nGHqUPNz58OXTCxB_rxNh-B84sZsC9bVwJukpEiHcZLqz4oXfXpi7s1Q1Gygh/exec"; // REEMPLAZAR CON TU URL
         let activos = [], tareas = [], recambios = [], excelCreds = {}, reporteActual = [];
 
         async function login() {
@@ -313,8 +313,22 @@
             try {
                 await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
                 alert("✅ Éxito");
-                location.reload();
-            } catch (e) { alert("Error"); btn.disabled = false; btn.innerText = originalText; }
+
+                // 🔥 Limpieza automática para RECAMBIOS (sin recargar la página)
+                if (tipo === 'recambios') {
+                    const tbody = document.querySelector('#t-recambios tbody');
+                    tbody.innerHTML = "";
+                    addRecambio(); // Añadir una fila vacía nueva
+                }
+
+                // Si quisieras limpiar otras pestañas, se puede ampliar aquí
+
+            } catch (e) { 
+                alert("Error"); 
+            } finally {
+                btn.disabled = false; 
+                btn.innerText = originalText; 
+            }
         }
 
         function renderAdmin() {
