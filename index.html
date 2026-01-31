@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Tradebe Molino v9.1</title>
+    <title>Tradebe Molino v9.2</title>
     <style>
         :root { 
             --blue: #0056b3; --green: #89b434; --orange: #e87e04; 
@@ -97,7 +97,7 @@
 
     <div id="app" class="page-section">
         <div class="header">
-            <div><span style="color:var(--orange); font-weight:900;">TRADE</span><span style="color:var(--green); font-weight:900;">BE</span> <small style="color:#999; margin-left:10px;">| MOLINO v9.1</small></div>
+            <div><span style="color:var(--orange); font-weight:900;">TRADE</span><span style="color:var(--green); font-weight:900;">BE</span> <small style="color:#999; margin-left:10px;">| MOLINO v9.2</small></div>
             <div id="user-tag" style="font-size:0.85em; font-weight:bold; background:#edf2f7; padding:5px 12px; border-radius:20px;"></div>
             <button onclick="logout()" style="background:none; border:1px solid #e2e8f0; padding:6px 12px; cursor:pointer; border-radius:6px; font-size:0.8em; font-weight:bold; color:#666;">Cerrar Sesión</button>
         </div>
@@ -105,7 +105,7 @@
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxqgA6nGHqUPNz58OXTCxB_rxNh-B84sZsC9bVwJukpEiHcZLqz4oXfXpi7s1Q1Gygh/exec"; // REEMPLAZAR CON TU URL
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxqgA6nGHqUPNz58OXTCxB_rxNh-B84sZsC9bVwJukpEiHcZLqz4oXfXpi7s1Q1Gygh/exec"; // Asegúrate de que esta URL corresponde al Script que tiene las funciones de Admin y Reportes
         let activos = [], tareas = [], recambios = [], excelCreds = {}, reporteActual = [];
 
         async function login() {
@@ -313,16 +313,11 @@
             try {
                 await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
                 alert("✅ Éxito");
-
-                // 🔥 Limpieza automática para RECAMBIOS (sin recargar la página)
                 if (tipo === 'recambios') {
                     const tbody = document.querySelector('#t-recambios tbody');
                     tbody.innerHTML = "";
-                    addRecambio(); // Añadir una fila vacía nueva
+                    addRecambio();
                 }
-
-                // Si quisieras limpiar otras pestañas, se puede ampliar aquí
-
             } catch (e) { 
                 alert("Error"); 
             } finally {
@@ -331,15 +326,43 @@
             }
         }
 
+        // --- SECCIÓN ADMIN (Código importado de v8.6) ---
+
         function renderAdmin() {
-            document.getElementById('user-tag').innerText = "⚙️ ADMIN";
+            document.getElementById('user-tag').innerText = "⚙️ ADMINISTRADOR";
             document.getElementById('view').innerHTML = `
                 <div class="card">
                     <div class="section-title">Gestión de Maestros</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
-                        <div><input type="text" id="nT" placeholder="Tarea"><button onclick="addExt('addTarea', 'nT')">+</button></div>
-                        <div><input type="text" id="nA" placeholder="Activo"><button onclick="addExt('addActivo', 'nA')">+</button></div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1.2fr; gap:15px">
+                        <div>
+                            <label style="font-size:0.8em; font-weight:bold; color:#64748b;">NUEVA TAREA</label><br>
+                            <input type="text" id="nT" class="full-w" style="margin-bottom:5px">
+                            <button class="btn btn-blue full-w" style="padding:8px" onclick="addExt('addTarea', 'nT')">Añadir Tarea</button>
+                        </div>
+                        <div>
+                            <label style="font-size:0.8em; font-weight:bold; color:#64748b;">NUEVO ACTIVO</label><br>
+                            <input type="text" id="nA" class="full-w" style="margin-bottom:5px">
+                            <button class="btn btn-blue full-w" style="padding:8px" onclick="addExt('addActivo', 'nA')">Añadir Activo</button>
+                        </div>
+                        <div>
+                            <label style="font-size:0.8em; font-weight:bold; color:#64748b;">NUEVO OPERARIO</label><br>
+                            <div style="display:flex; gap:5px; margin-bottom:5px">
+                                <input type="text" id="nOp" placeholder="Usuario" class="full-w">
+                                <input type="text" id="pOp" placeholder="Pass" class="full-w">
+                            </div>
+                            <button class="btn btn-green full-w" style="padding:8px" onclick="addOperario()">Crear Operario</button>
+                        </div>
                     </div>
+                </div>
+                <div class="card">
+                    <div class="section-title">Histórico de Datos</div>
+                    <div style="display:flex; gap:10px; margin-bottom:20px; align-items:flex-end; flex-wrap:wrap;">
+                        <div><label style="font-size:0.7em; font-weight:bold">DESDE</label><br><input type="date" id="f_ini"></div>
+                        <div><label style="font-size:0.7em; font-weight:bold">HASTA</label><br><input type="date" id="f_fin"></div>
+                        <button class="btn btn-blue" onclick="generarReporte()">CONSULTAR</button>
+                        <button id="btnDownload" class="btn btn-green" style="display:none" onclick="descargarCSV()">DESCARGAR EXCEL</button>
+                    </div>
+                    <div id="report-output" style="max-height:400px; overflow-y:auto; border:1px solid #eee; font-size:0.85em;"></div>
                 </div>`;
         }
 
@@ -347,8 +370,62 @@
             const val = document.getElementById(inp).value;
             if(!val) return;
             fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: acc, valor: val }) });
-            alert("Grabado."); document.getElementById(inp).value = "";
+            alert("Grabado correctamente."); document.getElementById(inp).value = "";
+        }
+
+        async function addOperario() {
+            const nombre = document.getElementById('nOp').value.toLowerCase().trim();
+            const pass = document.getElementById('pOp').value;
+            if(!nombre || !pass) return;
+            fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ accion: 'addOperario', nombre, pass }) });
+            alert("Operario creado."); document.getElementById('nOp').value = ""; document.getElementById('pOp').value = "";
+        }
+
+        async function generarReporte() {
+            const out = document.getElementById('report-output');
+            const finiStr = document.getElementById('f_ini').value;
+            const ffinStr = document.getElementById('f_fin').value;
+            if (!finiStr || !ffinStr) return;
+            const fini = new Date(finiStr); fini.setHours(0,0,0,0);
+            const ffin = new Date(ffinStr); ffin.setHours(23,59,59,999);
+            out.innerHTML = "<div style='padding:20px; text-align:center; color:gray'>Consultando base de datos...</div>";
+            document.getElementById('btnDownload').style.display = "none";
+            try {
+                const res = await fetch(SCRIPT_URL + "?action=getReport");
+                const dataRows = await res.json();
+                reporteActual = [];
+                let html = `<table style="font-size:0.9em"><thead><tr><th>Fecha</th><th>Turno</th><th>Operario</th><th>Tarea</th><th>Activo</th><th>Parada</th><th>Arranque</th></tr></thead><tbody>`;
+                dataRows.forEach(row => {
+                    // Asumimos formato dd/mm/yyyy en row[0]
+                    const p = row[0].split("/");
+                    // Crear fecha segura (mes - 1 en JS)
+                    const d = new Date(p[2], p[1]-1, p[0]);
+                    
+                    if (d >= fini && d <= ffin) {
+                        // Ajusta los índices (row[X]) si tu Excel tiene columnas distintas
+                        html += `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[14]}</td><td>${row[15]}</td><td>${row[12]}</td><td>${row[13]}</td></tr>`;
+                        reporteActual.push(row);
+                    }
+                });
+                if(reporteActual.length > 0) {
+                    out.innerHTML = html + "</tbody></table>";
+                    document.getElementById('btnDownload').style.display = "inline-block";
+                } else { out.innerHTML = "<div style='padding:20px; text-align:center'>Sin resultados en este rango.</div>"; }
+            } catch (e) { out.innerHTML = "Error de red o formato de fecha."; }
+        }
+
+        function descargarCSV() {
+            let csv = "sep=,\nFecha,Turno,Operario,Lote,H_Mol_I,H_Prod_I,Z1_I,Z2_I,H_Mol_F,H_Prod_F,Z1_F,Z2_F,Parada,Arranque,Tarea,Activo,Obs\n";
+            reporteActual.forEach(row => { 
+                // Escapar comillas dobles para CSV válido
+                csv += row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",") + "\n"; 
+            });
+            const blob = new Blob(["\ufeff", csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `Reporte_Tradebe_${new Date().toLocaleDateString()}.csv`;
+            link.click();
         }
     </script>
 </body>
-</html>
+</html
